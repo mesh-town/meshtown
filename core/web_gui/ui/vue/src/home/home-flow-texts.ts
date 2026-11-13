@@ -62,8 +62,6 @@ export const HOME_INVITE_BAD_NAME = "The name for this invitation is too long or
 export const HOME_INVITE_UNREACHABLE = "Couldn't reach " + NET_NAME + " on this device. Check that it is running, then try again.";
 export const HOME_INVITE_FAILED_PLAIN = "Couldn't create the invitation. Try again in a minute.";
 export const homeInviteFailed = (message: string): string => "Couldn't create the invitation: " + message.replace(/[.\s]+$/, "") + ".";
-export const HOME_INVITE_COPIED = "✓ Invite copied — paste it into a private message";
-export const HOME_INVITE_MANUAL = "Clipboard unavailable — select the invite below and copy it manually.";
 export const HOME_INVITE_STALE = "The network changed — click \"Invite a member\" again.";
 export const HOME_REACH_ISSUER_ONLY = "Only this computer can let them in — don't turn it off until the new member joins.";
 export const HOME_REACH_ISSUER_AND_ONE = "Better not to turn this computer off until the new member joins.";

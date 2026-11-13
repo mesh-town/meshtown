@@ -4,7 +4,6 @@ import { afterEach, describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   ADMISSION_REFUSED_NONE,
-  PEERS_INVITE_COPIED,
   PEERS_INVITE_ONE,
   PEERS_NETS_HINT_KEY,
   PEERS_NETS_HINT_OK,
@@ -115,10 +114,6 @@ describe("the broken-network texts", () => {
 
 describe("fixed strings", () => {
   it("the invite button of a single network", () => assert.equal(PEERS_INVITE_ONE, "Invite a member"));
-
-  it("the copied-invite line", () => {
-    assert.equal(PEERS_INVITE_COPIED, "Invite copied. It works once, for 24 hours — send it to one person in a private message.");
-  });
 
   it("a network being joined", () => {
     assert.equal(PEERS_TAB_JOINING, "Joining the network…");

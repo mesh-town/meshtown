@@ -30,7 +30,7 @@ export class DiagnosticsSection {
     this.keyShowButton = this.keyCard.getByRole('button', { name: 'Show', exact: true });
     this.keyHideButton = this.keyCard.getByRole('button', { name: 'Hide', exact: true });
     this.inviteButton = page.getByRole('button', { name: 'Invite a member' });
-    this.inviteValue = page.getByLabel('Invite to send');
+    this.inviteValue = page.locator('dialog[open]').getByLabel('Invite to send');
   }
 
   /** Expands the `<details>` "Technical details" if collapsed. */

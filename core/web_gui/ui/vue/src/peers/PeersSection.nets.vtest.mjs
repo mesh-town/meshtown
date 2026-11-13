@@ -16,7 +16,6 @@ import { PEER2_FULL, SELF_FULL, baseConfig, baseState } from "../testing/section
 
 const HINT_KEY = "meshtown.netsHintSeen";
 const HINT = "You’re now in 2 networks.";
-const COPIED = "Invite copied. It works once, for 24 hours — send it to one person in a private message.";
 const SECRET = "mesh-invite2-SECRETSECRET";
 const FULL_E = "E".repeat(64);
 
@@ -238,23 +237,11 @@ describe("the invite on the second tab", () => {
     expect(page.invitePaths()).toEqual(["/api/net/" + NET_B + "/network/invite"]);
   });
 
-  it("when copied, says so for ten seconds", async () => {
+  it("opens the share window with the invite string and a Copy button", async () => {
     const page = await openTwo({ hash: "peers/" + NET_B });
-    page.clipboardWorks();
     await page.whenInviteClicked();
-    expect(page.sectionText()).toContain(COPIED);
-    await page.after(9000);
-    expect(page.sectionText(), "still shown before the ten seconds pass").toContain(COPIED);
-    await page.after(2000);
-    expect(page.sectionText()).not.toContain(COPIED);
-  });
-
-  it("when the clipboard refuses, shows the invite to copy by hand", async () => {
-    const page = await openTwo({ hash: "peers/" + NET_B });
-    page.clipboardRefuses();
-    await page.whenInviteClicked();
-    expect(page.sectionText()).toContain("Clipboard unavailable");
-    expect(page.sectionText()).toContain(SECRET);
+    expect(page.wrapper.get("dialog.invite-share-dialog [aria-label='Invite to send']").text()).toBe(SECRET);
+    expect(page.wrapper.get("#invite-share-copy").text()).toBe("Copy");
   });
 
   it("when the node cannot make it, says that the invite is not ready", async () => {
@@ -262,7 +249,7 @@ describe("the invite on the second tab", () => {
     page.node.slotList[1].routes["GET /api/network/invite"] = { status: 409, body: { error: "busy" } };
     await page.whenInviteClicked();
     expect(page.sectionText()).toContain("The invite isn't ready yet");
-    expect(page.sectionText()).not.toContain(COPIED);
+    expect(page.wrapper.get("[aria-label='Invite to send']").text()).toBe("");
   });
 });
 

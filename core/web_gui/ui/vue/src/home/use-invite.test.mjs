@@ -46,7 +46,8 @@ describe("useInvite", () => {
   });
 
   it("the status goes away together with the string", async () => {
-    const w = await setupRequested();
+    const w = setupIdle({});
+    assert.equal(await w.i.request(), "failed");
     assert.notEqual(w.i.status.value, "");
     w.store.state = withNetwork("net-b");
     await nextTick();
@@ -79,10 +80,10 @@ describe("useInvite: warning", () => {
   it("follows a new request: issuer_only → issuer_and_one → spread", async () => {
     const w = await setupRequested(ISSUER_ONLY);
     w.node.reply = { invite: SECRET, reach: "issuer_and_one" };
-    assert.equal(await w.i.request(), "copied");
+    assert.equal(await w.i.request(), "ready");
     assert.equal(w.i.warning.value, WARN_ISSUER_AND_ONE);
     w.node.reply = { invite: SECRET, reach: "spread" };
-    assert.equal(await w.i.request(), "copied");
+    assert.equal(await w.i.request(), "ready");
     assert.equal(w.i.warning.value, "");
     w.unmount();
   });
@@ -116,7 +117,7 @@ describe("useInvite: warning", () => {
     const w = await setupRequested(ISSUER_ONLY);
     w.store.state = withNetwork("net-b");
     await nextTick();
-    assert.equal(await w.i.request(), "copied");
+    assert.equal(await w.i.request(), "ready");
     assert.equal(w.i.warning.value, WARN_ISSUER_ONLY);
     w.unmount();
   });
@@ -143,6 +144,6 @@ function setupIdle(reply = { invite: SECRET }) {
 
 async function setupRequested(reply = { invite: SECRET }) {
   const w = setupIdle(reply);
-  assert.equal(await w.i.request(), "copied");
+  assert.equal(await w.i.request(), "ready");
   return w;
 }
