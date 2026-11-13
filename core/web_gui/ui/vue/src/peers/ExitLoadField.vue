@@ -54,10 +54,8 @@ const onBlur = (): Promise<void> => {
   focused.value = false;
   return commit();
 };
-const onEnter = (ev: KeyboardEvent): void => {
-  commit();
-  (ev.target as HTMLInputElement).blur();
-};
+// Enter only leaves the field: the blur handler saves, so the value is sent once.
+const onEnter = (ev: KeyboardEvent): void => (ev.target as HTMLInputElement).blur();
 </script>
 
 <template>
