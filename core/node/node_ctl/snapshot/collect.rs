@@ -4,7 +4,9 @@
 use crate::transport::net::PeerId;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+#[cfg(test)]
+use std::time::Duration;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::config_file::{IfaceFilter, ListenAccess};
 use crate::members::access::report::{members_reply, vote_summary, VoteSummary};
