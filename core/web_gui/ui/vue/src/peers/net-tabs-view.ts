@@ -4,12 +4,14 @@ import { NEW_NET_NAME, isRefused, netName, peersSlots, visibleSlots } from "../c
 import type { Store } from "../core/store.ts";
 import type { NetBrief } from "../core/api-types.ts";
 import { slotVotes } from "./net-votes.ts";
-import { PEERS_TAB_BROKEN_SUB, PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REFUSED_SUB, peersManagedTabSub, peersTabBrokenTitle, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
+import { PEERS_TAB_BROKEN_SUB, PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REFUSED_SUB, peersTabBrokenTitle, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
 
 export interface NetTab {
   slot: string;
   name: string;
   sub: string;
+  /** The state dot: green when somebody is online, grey otherwise (no connection included). */
+  online: boolean;
   title: string;
   votes: number;
 }
@@ -19,10 +21,10 @@ const briefOf = (store: Store, slot: string): NetBrief | undefined => store.nets
 // No connection: the node says so, or it knows members and none of them is online.
 export const isDown = (b: NetBrief): boolean => b.status === "broken" || (b.peers_total > 0 && b.peers_online === 0);
 
-// A deleted network says so; otherwise the sub says "managed" before the count (not when the connection is down).
+// A deleted network says so; otherwise the sub is the online count (or "no connection").
 function subOf(store: Store, slot: string, b: NetBrief | undefined, online: number, down: boolean): string {
   if (b?.id_hex && store.notices.some((n) => n.id_hex === b.id_hex)) return PEERS_TAB_DELETED_SUB;
-  return down ? peersTabSub(online, down) : peersManagedTabSub(online);
+  return peersTabSub(online, down);
 }
 
 function tabOf(store: Store, slot: string): NetTab {
@@ -36,7 +38,7 @@ function tabOf(store: Store, slot: string): NetTab {
   const broken = !refused && !waiting && b?.status === "broken" && slot !== "main" && b.id_hex == null;
   const sub = refused ? PEERS_TAB_REFUSED_SUB : waiting ? PEERS_TAB_JOINING_SUB : broken ? PEERS_TAB_BROKEN_SUB : subOf(store, slot, b, online, down);
   const title = broken ? peersTabBrokenTitle(name) : peersTabTitle(name, online, total, down);
-  return { slot, name, sub, title, votes: slotVotes(store, slot) };
+  return { slot, name, sub, online: !down && online > 0, title, votes: slotVotes(store, slot) };
 }
 
 export const netTabs = (store: Store): NetTab[] => peersSlots(store.nets, store.slots).map((slot) => tabOf(store, slot));

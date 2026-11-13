@@ -14,7 +14,6 @@ import {
   peersTabBrokenTitle,
   PEERS_TAB_JOINING,
   PEERS_TAB_JOINING_SUB,
-  peersInviteTo,
   peersNetLine,
   peersNetsHint,
   peersTabSub,
@@ -55,9 +54,9 @@ describe("peersWhoText", () => {
 });
 
 describe("peersTabSub", () => {
-  it("connected — the online count", () => assert.equal(peersTabSub(2, false), "· 2 online"));
-  it("zero online but connected — still a count", () => assert.equal(peersTabSub(0, false), "· 0 online"));
-  it("no connection — the count is not shown", () => assert.equal(peersTabSub(2, true), "· no connection"));
+  it("connected — the online count", () => assert.equal(peersTabSub(2, false), "2 online"));
+  it("zero online but connected — still a count", () => assert.equal(peersTabSub(0, false), "0 online"));
+  it("no connection — the count is not shown", () => assert.equal(peersTabSub(2, true), "no connection"));
 });
 
 describe("peersTabTitle", () => {
@@ -71,10 +70,13 @@ describe("peersTabTitle", () => {
 });
 
 describe("tab head", () => {
-  it("the invite button names the network", () => assert.equal(peersInviteTo("my devices"), "Invite to \"my devices\""));
+  it("the grey line is the who-text with a capital", () => {
+    assert.equal(peersNetLine("just you"), "Just you");
+  });
 
-  it("the grey line joins the network and who is in it", () => {
-    assert.equal(peersNetLine("my devices", "just you"), "Network \"my devices\" · just you");
+  it("the grey line puts a dot between who is there and who is online", () => {
+    assert.equal(peersNetLine("you and 5 others, 4 online"), "You and 5 others · 4 online");
+    assert.equal(peersNetLine("you and 2 others, both online"), "You and 2 others · both online");
   });
 });
 
@@ -102,7 +104,7 @@ describe("peersNetsHint in the app", () => {
 
 describe("the broken-network texts", () => {
   it("name the tab and the reason", () => {
-    assert.equal(PEERS_TAB_BROKEN_SUB, "· can't start");
+    assert.equal(PEERS_TAB_BROKEN_SUB, "can't start");
     assert.equal(peersTabBrokenTitle("work"), "work — can't start: its saved settings can't be read");
     assert.equal(
       peersBrokenNet(),
@@ -120,7 +122,7 @@ describe("fixed strings", () => {
 
   it("a network being joined", () => {
     assert.equal(PEERS_TAB_JOINING, "Joining the network…");
-    assert.equal(PEERS_TAB_JOINING_SUB, "· joining…");
+    assert.equal(PEERS_TAB_JOINING_SUB, "joining…");
     assert.equal(PEERS_NEW_NET, "New network");
   });
 

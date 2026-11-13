@@ -39,6 +39,8 @@ describe("one network", () => {
   it("offers \"Invite a member\" above the list", async () => {
     const page = await openOne();
     expect(page.tabHead().get("button").text()).toBe("Invite a member");
+    expect(page.tabHead().get("h3").text()).toContain("friends");
+    expect(page.tabHead().get(".net-badge").text()).toBe("Managed");
     const position = page.tabHead().element.compareDocumentPosition(page.list().element);
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING, "the header comes before the list").toBeTruthy();
   });
@@ -73,21 +75,21 @@ describe("two networks", () => {
 
     it("says how many members are online in each network", async () => {
       const page = await openTwo();
-      expect(page.tabNamed("friends").text()).toContain("· 1 online");
-      expect(page.tabNamed("my devices").text()).toContain("· 2 online");
+      expect(page.tabNamed("friends").text()).toContain("1 online");
+      expect(page.tabNamed("my devices").text()).toContain("2 online");
       expect(page.tabNamed("my devices").attributes("title")).toBe("my devices — 2 of 2 members online");
     });
 
     it("says \"no connection\" instead of the count when nobody else is online", async () => {
       const page = await openTwo({ patchB: bNet({ others: [laptop(false), phone(false)] }) });
-      expect(page.tabNamed("my devices").text()).toContain("· no connection");
+      expect(page.tabNamed("my devices").text()).toContain("no connection");
       expect(page.tabNamed("my devices").text()).not.toContain("online");
       expect(page.tabNamed("my devices").attributes("title")).toBe("my devices — no connection");
     });
 
     it("says \"no connection\" when the network is broken, whoever is online", async () => {
       const page = await openTwo({ patchB: bNet({ status: "broken" }) });
-      expect(page.tabNamed("my devices").text()).toContain("· no connection");
+      expect(page.tabNamed("my devices").text()).toContain("no connection");
     });
 
     it("counts the join requests of each network in a circle, not the number the summary gives", async () => {
@@ -108,26 +110,29 @@ describe("two networks", () => {
   describe("the header of the tab", () => {
     it("on the first network invites to it and tells who is there", async () => {
       const page = await openTwo();
-      expect(page.tabHead().get("button").text()).toBe('Invite to "friends"');
-      expect(page.tabHead().text()).toContain('Network "friends" · you and 2 others, 1 online');
+      expect(page.tabHead().get("button").text()).toBe("Invite a member");
+      expect(page.tabHead().get("h3").text()).toContain("friends");
+      expect(page.tabHead().get(".net-badge").text()).toBe("Managed");
+      expect(page.tabHead().get("#peers-net-line").text()).toContain("You and 2 others · 1 online");
     });
 
     it("on the second network invites to that one", async () => {
       const page = await openTwo({ hash: "peers/" + NET_B });
-      expect(page.tabHead().get("button").text()).toBe('Invite to "my devices"');
-      expect(page.tabHead().text()).toContain('Network "my devices" · you and 2 others, both online');
+      expect(page.tabHead().get("button").text()).toBe("Invite a member");
+      expect(page.tabHead().get("h3").text()).toContain("my devices");
+      expect(page.tabHead().get("#peers-net-line").text()).toContain("You and 2 others · both online");
     });
 
     it.each([
-      ["nobody else", [], "just you"],
-      ["one other, online", [laptop(true)], "you and 1 other, online"],
-      ["one other, offline", [laptop(false)], "you and 1 other, 0 online"],
-      ["two others, both online", [laptop(true), phone(true)], "you and 2 others, both online"],
-      ["three others, all online", [laptop(true), phone(true), tablet(true)], "you and 3 others, all online"],
-      ["three others, two online", [laptop(true), phone(false), tablet(true)], "you and 3 others, 2 online"],
+      ["nobody else", [], "Just you"],
+      ["one other, online", [laptop(true)], "You and 1 other · online"],
+      ["one other, offline", [laptop(false)], "You and 1 other · 0 online"],
+      ["two others, both online", [laptop(true), phone(true)], "You and 2 others · both online"],
+      ["three others, all online", [laptop(true), phone(true), tablet(true)], "You and 3 others · all online"],
+      ["three others, two online", [laptop(true), phone(false), tablet(true)], "You and 3 others · 2 online"],
     ])("describes %s", async (_what, others, who) => {
       const page = await openTwo({ hash: "peers/" + NET_B, patchB: bNet({ others }) });
-      expect(page.tabHead().text()).toContain('Network "my devices" · ' + who);
+      expect(page.tabHead().get("#peers-net-line").text()).toContain(who);
     });
   });
 
@@ -313,7 +318,7 @@ describe("networks with the same name", () => {
 
   it("use the same names in the header of the tab", async () => {
     const page = await openSameNames("peers/" + NET_B);
-    expect(page.tabHead().get("button").text()).toBe('Invite to "friends · 9c01"');
+    expect(page.tabHead().get("h3").text()).toContain("friends · 9c01");
   });
 });
 

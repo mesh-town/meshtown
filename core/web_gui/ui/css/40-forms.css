@@ -16,7 +16,7 @@
   .hint{color:var(--fg-muted);font-size:12.5px;margin-top:8px;}
   .hint + :is(label, .btn, .card, .invite-form, .kind-picker, .toggle-inline, #add-net-create-box),
   #add-net-create-box .kind-picker, #you-block .toggle-inline{margin-top:8px;}
-  .hint.admins-line, .hint.net-banner{margin-bottom:10px;}
+  .hint.net-banner{margin-bottom:10px;}
 
   .btn{
     border:1px solid var(--control-border);
