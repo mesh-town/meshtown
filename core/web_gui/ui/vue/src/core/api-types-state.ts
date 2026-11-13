@@ -155,11 +155,40 @@ export interface SocksInfo {
   pac_url: string | null; // PAC address on the proxy port ("http://127.0.0.1:1080/proxy.pac"); null — the proxy is off
 }
 
+/** Why an exit refuses new connections; an unknown word from a newer node reads as `other`. */
+export type OverloadReason = "limit" | "share" | "memory" | "other";
+
+/** The member's own count of connections an exit turned away: over the last two minutes. */
+export interface TurnedAway {
+  refused: number;
+  attempts: number;
+}
+
+/** One member of this network that was turned away in the last 10 minutes. */
+export interface ExitLoadMember {
+  id_full: string;
+  admitted: number;
+  refused: number;
+}
+
+export interface ExitLoad {
+  streams: number;
+  limit: number;
+  limit_auto: number;
+  overloaded: OverloadReason | null;
+  admitted: number;
+  refused: number;
+  members: ExitLoadMember[];
+  elsewhere_refused: number;
+}
+
 interface ExitInfo {
   enabled: boolean;
   domains: number;
   /** Full ids of the members going to the internet through this node; `[]` — nobody. */
   clients: string[];
+  /** Load of this node as an exit; `null` or no key — the exit of this network is off (or an older node). */
+  load?: ExitLoad | null;
   /** The interface exit traffic is bound to; `null` or no key — any network. */
   interface?: ExitIfaceInfo | null;
 }
@@ -209,6 +238,8 @@ export interface PeerInfo {
   checked: number;
   stale: boolean;
   last_seen_sec: number;
+  /** The reason the member announced an overload (record accepted); no key or `null` — not overloaded. */
+  overloaded?: OverloadReason | null;
 }
 
 export interface DomainInfo {
@@ -245,6 +276,9 @@ export interface ChosenExit {
   country: string | null; // not described in the §1.3 prose, present in the code's `ChosenExit`
   active: boolean; // true for at most one
   removed?: boolean; // the exit is no longer in the network
+  overloaded?: OverloadReason | null; // the exit announced an overload
+  turned_away?: TurnedAway | null; // the local count of refusals over two minutes
+  busy?: boolean; // `overloaded != null || turned_away != null`
 }
 
 interface PortsInfo {

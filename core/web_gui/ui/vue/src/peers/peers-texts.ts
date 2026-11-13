@@ -30,6 +30,12 @@ export const PEERS_OLDER = "older version";
 export const PEERS_EDIT = "Rename";
 export const PEERS_CHOSEN_OK = "✓ Your exit";
 export const PEERS_CHOSEN_DOWN = "Your exit — unavailable right now";
+export const PEERS_OVERLOADED_BADGE = "Overloaded";
+export const PEERS_OVERLOADED_SELF = "This computer is turning members away.";
+export const PEERS_OVERLOADED_LIMIT = "It has reached its connection limit.";
+export const PEERS_OVERLOADED_SHARE = "Some members have reached their share of its connections.";
+export const PEERS_OVERLOADED_MEMORY = "It is low on memory and refuses new connections.";
+export const PEERS_OVERLOADED_OTHER = "It refuses some new connections.";
 export const PEERS_REFUSED = "Not available as an exit";
 
 // Several networks: the tab row, the tab header, the hint.

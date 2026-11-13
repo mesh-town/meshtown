@@ -3,7 +3,7 @@
 
 import { agoText } from "../common/words.ts";
 import {
-  PEERS_DIRECT, PEERS_OFFLINE, PEERS_ONLINE, PEERS_RELAY, PEERS_SELF_EXIT_OFF, PEERS_SELF_EXIT_ON,
+  PEERS_DIRECT, PEERS_OFFLINE, PEERS_OVERLOADED_LIMIT, PEERS_OVERLOADED_MEMORY, PEERS_OVERLOADED_OTHER, PEERS_OVERLOADED_SELF, PEERS_OVERLOADED_SHARE, PEERS_ONLINE, PEERS_RELAY, PEERS_SELF_EXIT_OFF, PEERS_SELF_EXIT_ON,
   peersOfflineSeenText, peersOlderTitleText, peersRttText,
 } from "./peers-texts.ts";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
@@ -70,6 +70,24 @@ function onlineText(p: PeerInfo): string {
 export function peerMetaText(p: PeerInfo, state: NodeState): string {
   if (p.self) return state.exit.enabled ? PEERS_SELF_EXIT_ON : PEERS_SELF_EXIT_OFF;
   return p.online ? onlineText(p) : offlineText(p);
+}
+
+const OVERLOAD_TITLES: Record<string, string> = {
+  limit: PEERS_OVERLOADED_LIMIT, share: PEERS_OVERLOADED_SHARE, memory: PEERS_OVERLOADED_MEMORY,
+};
+
+// The Overloaded badge tooltip: the reason of the member, a fixed phrase for the own row; "" — no badge.
+// An offline member is never marked (its record is not counted).
+export function overloadTitle(p: Pick<PeerInfo, "self" | "online" | "overloaded">): string {
+  if (!p.overloaded || (!p.self && !p.online)) return "";
+  if (p.self) return PEERS_OVERLOADED_SELF;
+  return OVERLOAD_TITLES[p.overloaded] || PEERS_OVERLOADED_OTHER;
+}
+
+// The state dot class of a row.
+export function peerDotClass(p: Pick<PeerInfo, "self" | "online" | "overloaded">): string {
+  if (overloadTitle(p)) return "dot-orange";
+  return p.online || p.self ? "dot-green" : "dot-grey";
 }
 
 // "You" first, the rest in snapshot order.
