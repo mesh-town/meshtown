@@ -11,6 +11,8 @@ import { netName } from "../core/slots.ts";
 import { getPath } from "../settings/settings-fields.ts";
 import { metaHas } from "../settings/settings-view.ts";
 import { inAppPage } from "./browser-setup.ts";
+import { busyLines, exitIsBusy } from "./exit-busy.ts";
+import { busyHeaderNetText, busyHeaderText, busyMainText, busyNetMainText } from "./exit-busy-texts.ts";
 import { exitCandidates } from "./exit-list.ts";
 import type { SetupMark } from "./home-actions.ts";
 import {
@@ -26,7 +28,7 @@ import {
 
 type Snapshot = Partial<NodeState> | null;
 export type HomeMode = "wizard" | "normal";
-export type PanelLevel = "green" | "red" | "grey";
+export type PanelLevel = "green" | "orange" | "red" | "grey";
 type PanelAction = "pick-other" | "direct";
 export interface StatePanelView {
   level: PanelLevel;
@@ -34,6 +36,8 @@ export interface StatePanelView {
   /** The short route phrase for the header. */
   line?: string;
   sub: string;
+  /** The "what to do" line under the second one (an overloaded exit). */
+  hint?: string;
   actions: PanelAction[];
   busy?: boolean;
 }
@@ -134,12 +138,20 @@ function linkTail(peer: PeerInfo | undefined): string {
   return [HOME_LINK_ONLINE, ...path, ...rtt].join(" · ");
 }
 
+// The chosen exit is overloaded: an orange panel; the header phrase is short, the panel says what may go wrong and what to do.
+function busyPanel(exit: ChosenExit, who: string, net: string | null): StatePanelView {
+  const main = net === null ? busyMainText(who) : busyNetMainText(who, net);
+  const line = net === null ? busyHeaderText(who) : busyHeaderNetText(who, net);
+  return { level: "orange", main, line, ...busyLines(exit, who), actions: ["pick-other"] };
+}
+
 function exitPanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const active = (state.route?.exits || []).find((e) => e.active);
   const peers = state.peers || [];
   const who = active ? peerLabel(active, false, peers) : HOME_EXIT_CHOSEN_FALLBACK;
   const peer = peers.find((p) => active && p.id_full === active.id_full);
   const net = active && ctx?.multi ? ctx.netOf(active.id_full) : null;
+  if (exitIsBusy(active)) return busyPanel(active, who, net);
   if (net !== null) return { ...panel("green", netsViaText(who, net), linkTail(peer)) };
   const app = inAppPage();
   const line = app ? routeLineAppViaText(who) : routeLineViaText(who);
@@ -166,11 +178,12 @@ const ROUTE_PANELS = new Map<string | undefined, (state: Partial<NodeState>, ctx
 function routePanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const route = state.route;
   if (ctx?.multi && ctx.head?.level === "red") return panel("red", ctx.head.text, "", ["pick-other"]);
+  if (ctx?.multi && ctx.head?.level === "orange") return { level: "orange", main: ctx.head.main ?? ctx.head.text, line: ctx.head.text, sub: ctx.head.sub ?? "", hint: ctx.head.hint, actions: ["pick-other"] };
   if (ctx?.multi && ctx.head?.level === "green") return panel("green", ctx.head.text);
   return (ROUTE_PANELS.get(route && route.state) || directPanel)(state, ctx);
 }
 
-// `{ level: "green"|"red"|"grey", main, sub, actions }`; an empty snapshot gives no exception.
+// `{ level: "green"|"orange"|"red"|"grey", main, sub, actions }`; an empty snapshot gives no exception.
 // `absent` — the page gets no snapshots (`store.absence`): it comes before the snapshot.
 export function statePanel(state: Snapshot, absent: Absence | null = null, progress: JoinProgress | null = null, ctx?: PanelCtx): StatePanelView {
   if (progress) return progressPanel(progress);

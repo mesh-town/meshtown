@@ -26,6 +26,7 @@
     --ring-via:#2f6fd0;
     --ring-client:#af4bcd;
     --ring-online:var(--green);
+    --ring-busy:var(--busy);
     --ring-offline:#8c8c8c;
     --grey-bg:#e8ecee;
     --tabs-gap:10px;
@@ -64,6 +65,7 @@
       --ring-via:#5aaaff;
       --ring-client:#af4bcd;
       --ring-online:var(--green);
+      --ring-busy:var(--busy);
       --ring-offline:#6b7780;
       --grey-bg:#242c2f;
       --greyred-bg:#33211f;

@@ -63,6 +63,11 @@ function byRoles(members: RingMember[], r: number, keep: number): RingArc[] {
   return layout(groups.map((g, i) => ({ role: g.role, members: g.list, lengthPx: lengths[i] })), r);
 }
 
+/** The arc of the overloaded exit we use: painted with the busy colour, the dashes stay. */
+export function arcBusy(arc: RingArc): boolean {
+  return arc.role === "via" && arc.members.length > 0 && arc.members.every((m) => m.busy === true);
+}
+
 /** The `stroke-dasharray` of an arc drawn dashed (the path goes through another member), or null: solid. */
 export function arcDash(arc: RingArc, narrow: boolean): string | null {
   if (!arc.members.every((m) => m.relayed)) return null;

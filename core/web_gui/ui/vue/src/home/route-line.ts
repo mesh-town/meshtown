@@ -8,11 +8,17 @@ import { chosenExitIds } from "../common/exits.ts";
 import { peerLabel } from "../common/words.ts";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
 import { chosenOf } from "./exit-groups.ts";
+import { busyLines, exitIsBusy } from "./exit-busy.ts";
+import { busyHeaderNetText, busyNetMainText } from "./exit-busy-texts.ts";
 import { netsViaText } from "./nets-texts.ts";
 
 export interface RouteHead {
-  level: "green" | "red";
+  level: "green" | "orange" | "red";
   text: string;
+  /** Orange only: the panel lines of the overloaded exit (the header shows just `text`). */
+  main?: string;
+  sub?: string;
+  hint?: string;
 }
 
 export const WONT_OPEN = "Sites won't open";
@@ -25,7 +31,11 @@ function stoppedOffering(peer: PeerInfo | undefined): boolean {
 
 function viaHead(store: Store, slot: string, peer: PeerInfo, state: NodeState): RouteHead | null {
   if (slot === store.lead) return null;
-  return { level: "green", text: netsViaText(peerLabel(peer, false, state.peers || []), netName(store.nets, slot)) };
+  const who = peerLabel(peer, false, state.peers || []);
+  const net = netName(store.nets, slot);
+  const exit = (state.route?.exits || []).find((e) => e.id_full === peer.id_full);
+  if (exitIsBusy(exit)) return { level: "orange", text: busyHeaderNetText(who, net), main: busyNetMainText(who, net), ...busyLines(exit, who) };
+  return { level: "green", text: netsViaText(who, net) };
 }
 
 function chosenHead(store: Store, slot: string): RouteHead | null {

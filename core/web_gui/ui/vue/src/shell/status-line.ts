@@ -19,7 +19,7 @@ import { STATUS_HIM, STATUS_NETWORK_SEP, STATUS_NOT_JOINED, STATUS_STARTING, STA
 
 import type { Refused } from "../peers/admission-refused.ts";
 export type { Refused };
-type StatusLevel = "green" | "red" | "grey";
+type StatusLevel = "green" | "orange" | "red" | "grey";
 export interface StatusLine {
   level: StatusLevel;
   text: string;

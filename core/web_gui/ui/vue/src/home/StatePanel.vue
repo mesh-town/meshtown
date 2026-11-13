@@ -20,8 +20,9 @@ defineEmits<{ (e: "pick-other"): void; (e: "direct"): void }>();
     <div>
       <div class="state-main" id="route-state">{{ panel.main }}</div>
       <div v-if="panel.sub" class="state-sub">{{ panel.sub }}</div>
+      <div v-if="panel.hint" class="state-sub state-hint">{{ panel.hint }}</div>
       <ul v-if="ring && (ring.legend.length || ring.relaying)" class="ring-legend">
-        <li v-for="item in ring.legend" :key="item.role + item.relayed" :class="['ring-legend-' + item.role, { 'ring-legend-relayed': item.relayed }]">{{ item.text }}</li>
+        <li v-for="item in ring.legend" :key="item.role + item.relayed" :class="['ring-legend-' + item.role, { 'ring-legend-relayed': item.relayed, 'ring-legend-busy': item.busy }]">{{ item.text }}</li>
         <li v-if="ring.relaying" class="ring-legend-relaying">{{ HOME_RING_RELAYING }}</li>
       </ul>
       <div v-if="panel.actions.length" class="btn-row">
