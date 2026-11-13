@@ -2,13 +2,14 @@
 
 use portable_atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
 
 use super::line_rate::KeyedLineRate;
 use super::rss::RssGate;
 use super::share::Share;
 use super::window::StreamWindow;
+use crate::exit::load::{LoadSnapshot, Meter, Outcome, Reason};
 use crate::node::machine_memory::MemoryDefaults;
 use crate::transport::net::PeerId;
 
@@ -21,6 +22,14 @@ pub(crate) enum Busy {
 }
 
 impl Busy {
+    fn reason(&self) -> Reason {
+        match self {
+            Busy::Streams { .. } => Reason::Limit,
+            Busy::Share { .. } => Reason::Share,
+            Busy::Memory { .. } => Reason::Memory,
+        }
+    }
+
     pub(crate) fn line(&self) -> String {
         match self {
             Busy::Streams { live, limit } => {
@@ -41,6 +50,21 @@ impl Busy {
     }
 }
 
+// Read by the state snapshot in a later step.
+#[allow(dead_code)]
+/// What the owner's page shows about the load of the exit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct LoadView {
+    /// Streams open now.
+    pub(crate) streams: u64,
+    /// The cap in force.
+    pub(crate) limit: u64,
+    /// The cap by machine memory (what the setting 0 gives).
+    pub(crate) limit_auto: u64,
+    /// Overload reason, ten-minute totals and members with refusals.
+    pub(crate) counts: LoadSnapshot,
+}
+
 struct Inner {
     live: AtomicU64,
     limit: AtomicU64,
@@ -49,6 +73,7 @@ struct Inner {
     lines: KeyedLineRate<PeerId>,
     window: StreamWindow,
     share: Share,
+    load: Mutex<Meter>,
 }
 
 /// Live exit streams of the process and the rules for admitting a new one.
@@ -85,6 +110,7 @@ impl ExitLimits {
             lines: KeyedLineRate::default(),
             window: StreamWindow::default(),
             share: Share::default(),
+            load: Mutex::new(Meter::new(Instant::now())),
         }))
     }
 
@@ -132,7 +158,18 @@ impl ExitLimits {
     }
 
     /// Takes a place for a new stream: the member's share, the cap, then the process memory.
+    /// Every decision is counted for the load meter.
     pub(crate) fn try_admit(&self, peer: PeerId, now: Instant) -> Result<StreamSlot, Busy> {
+        let answer = self.admit_checked(peer, now);
+        let outcome = match &answer {
+            Ok(_) => Outcome::Admitted,
+            Err(busy) => Outcome::Refused(busy.reason()),
+        };
+        self.meter().record(peer, outcome, now);
+        answer
+    }
+
+    fn admit_checked(&self, peer: PeerId, now: Instant) -> Result<StreamSlot, Busy> {
         let limit = self.max_streams();
         self.0
             .share
@@ -148,6 +185,27 @@ impl ExitLimits {
                 })
             }
             None => Ok(slot),
+        }
+    }
+
+    fn meter(&self) -> MutexGuard<'_, Meter> {
+        self.0.load.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    #[allow(dead_code)]
+    /// Why the exit is overloaded at `now`, or `None` while it is not.
+    pub(crate) fn overloaded(&self, now: Instant) -> Option<Reason> {
+        self.meter().overloaded(now)
+    }
+
+    #[allow(dead_code)]
+    /// Numbers for the owner's page at `now`: streams, caps and the meter's ten-minute counts.
+    pub(crate) fn load_view(&self, now: Instant) -> LoadView {
+        LoadView {
+            streams: self.0.live.load(Ordering::Relaxed),
+            limit: self.max_streams(),
+            limit_auto: self.0.auto.load(Ordering::Relaxed),
+            counts: self.meter().snapshot(now),
         }
     }
 

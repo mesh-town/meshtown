@@ -26,6 +26,7 @@ mod clients;
 mod frame;
 mod gateway_memo;
 mod limits;
+pub(crate) mod load;
 mod outbound;
 mod pool;
 mod report;

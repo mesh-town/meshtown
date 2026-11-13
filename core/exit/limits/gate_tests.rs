@@ -284,3 +284,36 @@ mod stream_window {
         assert_eq!(limits.stream_window_bytes(), 262_144);
     }
 }
+
+mod load_meter {
+    use super::*;
+
+    #[test]
+    fn try_admit_notes_admit_and_each_refusal_reason() {
+        // given: a cap of 5, memory over the ceiling once the ceiling is set, two members
+        let limits = ExitLimits::with_rss(5, 0, || 2000);
+        let now = Instant::now();
+
+        // when: member 1 takes four, is refused a fifth by its share; member 2 takes the last place,
+        // is refused by the cap; one place is freed and the ceiling set, member 2 is refused by memory
+        let mut held: Vec<_> = (0..4).map(|_| limits.try_admit(pid(1), now)).collect();
+        let share = limits.try_admit(pid(1), now);
+        let last = limits.try_admit(pid(2), now);
+        let cap = limits.try_admit(pid(2), now);
+        held.pop();
+        limits.configure(5, 5, 1000);
+        let memory = limits.try_admit(pid(2), now);
+        let view = limits.load_view(now);
+
+        // then: admission behaved as before and each decision is counted
+        assert!(matches!(share, Err(Busy::Share { .. })));
+        assert!(last.is_ok());
+        assert!(matches!(cap, Err(Busy::Streams { .. })));
+        assert!(matches!(memory, Err(Busy::Memory { .. })));
+        assert_eq!(view.counts.admitted, 5);
+        assert_eq!(view.counts.refused, 3);
+        assert_eq!(view.counts.members.len(), 2);
+        assert_eq!((view.streams, view.limit), (4, 5));
+        assert_eq!(limits.overloaded(now), None, "three refusals in one bucket");
+    }
+}
