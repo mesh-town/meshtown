@@ -11,6 +11,7 @@ mod net_settings_tests;
 mod nets_tests;
 mod open_tests;
 mod path_busy_tests;
+mod path_exits_count_tests;
 mod path_gateway_tests;
 mod path_tests;
 mod path_udpgw_tests;
