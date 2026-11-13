@@ -4,6 +4,7 @@
 
 use super::{Core, InviteNote, ServeNote};
 use crate::gui::tray::app::members_note;
+use crate::gui::tray::app::menu_order::top_ids;
 use crate::gui::tray::app::nets_texts::{
     admit_text, invite_copied_line, invite_copied_text, no_connection_tail,
 };
@@ -146,7 +147,10 @@ impl Core {
     /// a raised icon (before `attach_ui`) — silently.
     pub(super) fn refresh_ui(&mut self) {
         let status_text = self.menu_first_line();
-        let tooltip = members_note::tooltip_text(&status_text, self.members) + &self.offline_tail();
+        let tooltip = members_note::tooltip_text(&status_text, self.members)
+            + members_note::own_overload_tail(self.own_overloaded, self.members)
+            + &self.offline_tail();
+        let overload_text = members_note::own_overload_item_text(self.own_overloaded, self.members);
         let admit_text = self.admit_item_text();
         let relaying_text = relaying_item_text(self.relaying);
         let proxy_text = proxy_item_text(&self.proxy);
@@ -168,6 +172,8 @@ impl Core {
         ui.relaying.apply(relaying_text);
         let note_ids = ui.extras.note_ids();
         ui.admit.apply(admit_text.as_deref(), &note_ids);
+        let at = top_ids(&note_ids, admit_text.is_some(), self.relaying).len();
+        ui.overload.apply(overload_text, at);
     }
 }
 

@@ -19,14 +19,15 @@
   .state-panel{display:flex;align-items:flex-start;gap:10px;}
   .state-panel .state-dot{margin-top:5px;flex-shrink:0;}
   .state-dot{width:12px;height:12px;border-radius:50%;background:var(--grey);}
-  .state-dot.green{background:var(--green);} .state-dot.red{background:var(--red);} .state-dot.grey{background:var(--grey);}
+  .state-dot.green{background:var(--green);} .state-dot.orange{background:var(--busy);} .state-dot.red{background:var(--red);} .state-dot.grey{background:var(--grey);}
   .state-panel.with-ring{gap:20px;align-items:center;}
-  .ring-level-green{--ring-center:var(--green);} .ring-level-red{--ring-center:var(--red);} .ring-level-grey{--ring-center:var(--grey);}
+  .ring-level-green{--ring-center:var(--green);} .ring-level-orange{--ring-center:var(--orange);} .ring-level-red{--ring-center:var(--red);} .ring-level-grey{--ring-center:var(--grey);}
   .ring-mark{position:relative;flex-shrink:0;width:max-content;}
   .ring-mark svg{display:block;}
   .ring-arc{stroke:var(--grey);}
   .ring-arc.ring-via{stroke:var(--ring-via);} .ring-arc.ring-client{stroke:var(--ring-client);}
   .ring-arc.ring-online{stroke:var(--ring-online);} .ring-arc.ring-offline{stroke:var(--ring-offline);}
+  .ring-arc.ring-via.ring-busy{stroke:var(--ring-busy);}
   .ring-arc.ring-relayed{stroke-linecap:butt;}
   .ring-empty{stroke:var(--border);stroke-width:2;stroke-dasharray:4 4;}
   .ring-center-main,.ring-center-sub{position:absolute;left:0;right:0;text-align:center;line-height:1.1;}
@@ -41,9 +42,10 @@
   .ring-legend li::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--grey);}
   .ring-legend-via::before{background:var(--ring-via)!important;} .ring-legend-client::before{background:var(--ring-client)!important;}
   .ring-legend-online::before{background:var(--ring-online)!important;} .ring-legend-offline::before{background:var(--ring-offline)!important;}
+  .ring-legend-via.ring-legend-busy::before{background:var(--ring-busy)!important;}
   .ring-legend li.ring-legend-relaying::before{content:none;display:none;}
   .ring-legend li.ring-legend-relayed::before{box-sizing:border-box;border:2px solid var(--grey);background:transparent!important;}
-  .ring-legend-via.ring-legend-relayed::before{border-color:var(--ring-via)!important;} .ring-legend-online.ring-legend-relayed::before{border-color:var(--ring-online)!important;}
+  .ring-legend-via.ring-legend-relayed::before{border-color:var(--ring-via)!important;} .ring-legend-via.ring-legend-busy.ring-legend-relayed::before{border-color:var(--ring-busy)!important;} .ring-legend-online.ring-legend-relayed::before{border-color:var(--ring-online)!important;}
   @media (max-width: 599px){
     .state-panel.with-ring{gap:12px;align-items:flex-start;}
     /* Narrow ring: the longest count wraps by words; 8px with line-height 1 keeps even a three-line wrap in a wide fallback font (DejaVu, Courier) inside the inner circle. */

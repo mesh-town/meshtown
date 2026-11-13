@@ -17,6 +17,8 @@ pub struct PeerRow {
     pub online: bool,
     pub exit: bool,
     pub country: Option<String>,
+    /// The member's exit says it is overloaded.
+    pub overloaded: bool,
 }
 
 /// A submenu of one network.
@@ -33,6 +35,8 @@ pub struct NetMenu {
     pub serves_exit: bool,
     /// Join requests of the network that wait for an admin.
     pub admitting: u32,
+    /// This computer's exit is overloaded in this network (`exit.load.overloaded`).
+    pub own_overloaded: bool,
     /// Administered network where we may not invite: the invite row is grey.
     pub invite_admins_only: bool,
     /// The network name for texts; the slot id when it has no name.
@@ -75,6 +79,7 @@ fn net_menu(slot: &SlotView) -> NetMenu {
         peers_more,
         serves_exit: snap.exit.enabled,
         admitting: slot.members_admitting,
+        own_overloaded: snap.own_exit_overloaded(),
         invite_admins_only: !slot.can_invite,
         label,
     }
@@ -108,6 +113,7 @@ fn peer_row(peer: &TrayPeer) -> PeerRow {
         online: peer.online,
         exit: peer.exit,
         country: peer.country.clone(),
+        overloaded: peer.overloaded.is_some(),
     }
 }
 

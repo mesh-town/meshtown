@@ -19,6 +19,8 @@ use crate::gui::tray::app::snapshot::{TrayChosenExit, TrayMembers, TrayPeer, Tra
 use crate::gui::tray::app::tray_texts::{peer_offline_text, peer_unnamed_text, EMPTY_HINT};
 use crate::gui::tray::app::view::RouteLine;
 
+use super::exit_marks;
+
 /// A ready "Exit via…" submenu list: availability, items, the status line (`route`)
 /// and the browser proxy address (`proxy`) for the `MENU_PROXY` item.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,6 +33,8 @@ pub struct ExitMenu {
     pub serves_exit: bool,
     /// `members` of the snapshot: the requests to join and our own exclusion (`members_note`).
     pub members: TrayMembers,
+    /// This computer's exit turns members away (`exit.load.overloaded`), in any shown network.
+    pub own_overloaded: bool,
     /// `transport.relay.serving`: this node relays between other members (a line under the status line).
     pub relaying: bool,
     /// The network the flat menu shows; `None` — the main network (or no network at all).
@@ -89,6 +93,7 @@ pub fn disabled_exit_menu(proxy: ProxyState) -> ExitMenu {
         proxy,
         serves_exit: false,
         members: TrayMembers::default(),
+        own_overloaded: false,
         relaying: false,
         slot: None,
         nets: Vec::new(),
@@ -115,6 +120,7 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
         proxy: ProxyState::of_snapshot(&snap.socks),
         serves_exit: snap.exit.enabled,
         members: snap.members,
+        own_overloaded: snap.own_exit_overloaded(),
         relaying: snap.transport.relay.serving,
         slot: None,
         nets: Vec::new(),
@@ -162,10 +168,7 @@ fn via_line(snap: &TraySnapshot, exit: &TrayChosenExit) -> RouteLine {
     let relayed = peers.iter().any(|p| {
         p.id_full.is_some() && p.id_full == exit.id_full && p.path.as_deref() == Some("relay")
     });
-    if relayed {
-        return RouteLine::ViaRelay(name);
-    }
-    RouteLine::Via(name)
+    exit_marks::via_variant(name, exit.busy, relayed)
 }
 
 /// The label of the chosen exit in the first menu line — the same as the submenu item's, but without
@@ -203,7 +206,7 @@ fn chosen_exit_item(exit: &TrayChosenExit) -> Option<ExitItem> {
     );
     Some(ExitItem {
         id_full,
-        label: caption,
+        label: exit_marks::chosen_label(caption, exit.online, exit.busy),
         checked: true,
         online: exit.online,
     })
@@ -218,9 +221,10 @@ fn peer_item(peer: &TrayPeer) -> Option<ExitItem> {
         peer.online,
         peer.country.as_deref(),
     );
+    let overloaded = peer.overloaded.is_some();
     Some(ExitItem {
         id_full,
-        label: caption,
+        label: exit_marks::peer_label(caption, peer.online, overloaded),
         checked: false,
         online: peer.online,
     })

@@ -281,3 +281,22 @@ mod status_line {
         }
     }
 }
+
+#[test]
+fn status_line_names_overloaded_exit() {
+    // given: a running node in a network, the chosen exit says it is overloaded
+    let view = View {
+        color: TrayColor::Green,
+        page: PageState::Ready,
+        node: NodeState::Running,
+        ring: Ring::EMPTY,
+        disk: None,
+        net: NetLink::Joined,
+    };
+
+    // when
+    let line = node_status_menu_line(view, &RouteLine::ViaBusy("Sedge".to_string()));
+
+    // then
+    assert_eq!(line, "🟠 Sedge is overloaded — some sites may not open");
+}

@@ -136,6 +136,7 @@ fn directly_click_clears_the_exit_of_the_chosen_network() {
         peers_more: 0,
         serves_exit: false,
         admitting: 0,
+        own_overloaded: false,
         invite_admins_only: false,
         label: slot.to_string(),
     };

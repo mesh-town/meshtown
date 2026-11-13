@@ -138,3 +138,29 @@ fn tray_members_ignores_the_removed_vote_count() {
         }
     );
 }
+
+#[test]
+fn own_overload_line_and_tooltip_tail() {
+    use crate::gui::tray::nets_click::{link_for, MenuFacts, MenuTarget};
+
+    // given / when / then: shown while overloaded, never when excluded
+    let quiet = TrayMembers::default();
+    assert_eq!(
+        own_overload_item_text(true, quiet),
+        Some("This computer is turning members away — open Members…")
+    );
+    assert_eq!(own_overload_item_text(false, quiet), None);
+    assert_eq!(own_overload_item_text(true, members(0, true)), None);
+    assert_eq!(own_overload_tail(true, quiet), " · turning members away");
+    assert_eq!(own_overload_tail(false, quiet), "");
+    assert_eq!(own_overload_tail(true, members(0, true)), "");
+
+    // and: a click opens the members page; the anchor names the first network with an overload
+    let facts = MenuFacts {
+        overload_slot: Some("ab12cd".to_string()),
+        ..MenuFacts::default()
+    };
+    let flat = link_for(&MenuTarget::Overload, "http://h/", &facts);
+    assert_eq!(flat.as_deref(), Some("http://h/#peers"));
+    assert_eq!(crate::gui::tray::overload_item::MENU_OVERLOAD, "overload");
+}

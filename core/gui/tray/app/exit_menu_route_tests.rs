@@ -240,3 +240,23 @@ mod serves_exit {
         assert!(!disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings)).serves_exit);
     }
 }
+
+#[test]
+fn a_busy_active_exit_is_via_busy_on_any_path() {
+    let state = |path: &str| {
+        json!({
+            "node": { "status": "online", "id_full": "me00" },
+            "peers": [{ "id": "aa11", "id_full": "aa11full", "path": path, "online": true }],
+            "route": {
+                "state": "exit",
+                "exits": [{
+                    "id": "aa11", "id_full": "aa11full", "name": "Sedge",
+                    "online": true, "active": true, "busy": true
+                }]
+            }
+        })
+    };
+    let busy = RouteLine::ViaBusy("Sedge".to_string());
+    assert_eq!(exit_menu_from_json(&state("direct")).route, busy);
+    assert_eq!(exit_menu_from_json(&state("relay")).route, busy);
+}
