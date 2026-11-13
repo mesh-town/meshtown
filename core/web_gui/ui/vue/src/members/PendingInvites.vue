@@ -3,7 +3,7 @@
 // the admin who made the invite edits it in place, for the others it is read-only.
 import { nextTick, ref, watch } from "vue";
 import { api } from "../core/api.ts";
-import { INVITE_SHARE_COPIED, INVITE_SHARE_MANUAL } from "../home/invite-share-texts.ts";
+import { INVITE_SHARE_COPIED } from "../home/invite-share-texts.ts";
 import InviteShareDialog from "../home/InviteShareDialog.vue";
 import InviteShareIcon from "../home/InviteShareIcon.vue";
 import { getInvites, inviteErrorText, relabelInvite } from "./invites-api.ts";
@@ -20,11 +20,14 @@ const loaded = ref(false);
 const kept = useKeptInvite(() => props.slot);
 const shareDialog = ref<InstanceType<typeof InviteShareDialog>>();
 
-async function showQr(i: OpenInvite): Promise<void> {
-  if (!(await kept.showQr(i))) return;
+async function openWindow(opened: boolean, mode: "text" | "qr"): Promise<void> {
+  if (!opened) return;
   await nextTick();
-  shareDialog.value?.open("qr");
+  shareDialog.value?.open(mode);
 }
+
+const showQr = async (i: OpenInvite): Promise<void> => openWindow(await kept.showQr(i), "qr");
+const copyInvite = async (i: OpenInvite): Promise<void> => openWindow(await kept.copy(i), "text");
 
 const draftOf = (i: OpenInvite): string => drafts.value[i.hash] ?? i.for_whom ?? "";
 const dirty = (i: OpenInvite): boolean => draftOf(i).trim() !== (i.for_whom ?? "");
@@ -69,9 +72,9 @@ watch(() => [props.slot, props.meAdmin, props.refreshKey, props.issueRevision], 
           <span v-else class="peer-name" :class="{ 'invite-unnamed': !i.for_whom }">{{ i.for_whom ?? INVITES_NO_NAME }}</span>
           <span v-if="errors[i.hash] || kept.failed.value[i.hash]" class="field-error-text" role="alert">{{ errors[i.hash] || kept.failed.value[i.hash] }}</span>
           <span v-if="i.kept" class="invite-share-links">
-            <button type="button" class="invite-share-link" data-act="copy" @click="kept.copy(i)"><InviteShareIcon kind="copy" />{{ INVITES_COPY }}</button>
+            <button type="button" class="invite-share-link" data-act="copy" @click="copyInvite(i)"><InviteShareIcon kind="copy" />{{ INVITES_COPY }}</button>
             <button type="button" class="invite-share-link" data-act="qr" @click="showQr(i)"><InviteShareIcon kind="qr" />{{ INVITES_SHOW_QR }}</button>
-            <span v-if="kept.copied.value[i.hash]" class="hint" role="status">{{ kept.copied.value[i.hash] === "done" ? INVITE_SHARE_COPIED : INVITE_SHARE_MANUAL }}</span>
+            <span v-if="kept.copied.value[i.hash]" class="hint" role="status">{{ INVITE_SHARE_COPIED }}</span>
           </span>
         </span>
         <span class="peer-meta">

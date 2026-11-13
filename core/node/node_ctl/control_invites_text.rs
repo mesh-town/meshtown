@@ -1,11 +1,13 @@
 //! The strings of the invites this node made: kept when an invite is issued, given back to an admin on
 //! request. The strings are secrets: they go only into the reply body, never into the journal.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::config::config_file::{keep, kept};
 use crate::invite::store::Ledger;
 use crate::invite::{Dealt, Issued};
+use crate::members::access::view::Verdicts;
 use crate::node::output::say;
 use crate::node::RunningNode;
 use crate::transport::net_mainline::unix_now;
@@ -45,9 +47,20 @@ fn gone() -> MemberError {
 
 /// The kept strings of our own open invite under `hash`; every other case is the same `gone` answer.
 async fn text_of(node: &RunningNode, hash: &str) -> Result<InviteText, MemberError> {
-    let (me, admins) = admins_of(node.access.view.verdicts().as_ref())?;
-    let path = node.kept_invites_path.as_deref().ok_or_else(gone)?;
     let store = Ledger::of(&node.domains);
+    let verdicts = node.access.view.verdicts();
+    text_for(&store, verdicts, node.kept_invites_path.as_deref(), hash).await
+}
+
+/// `text_of` without the node: the ledger, the viewer's verdicts and the kept-invites file.
+pub(super) async fn text_for(
+    store: &Ledger,
+    verdicts: Option<Arc<Verdicts>>,
+    path: Option<&Path>,
+    hash: &str,
+) -> Result<InviteText, MemberError> {
+    let (me, admins) = admins_of(verdicts.as_ref())?;
+    let path = path.ok_or_else(gone)?;
     let open = store
         .open(unix_now(), Some(&admins))
         .await

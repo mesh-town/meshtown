@@ -98,7 +98,7 @@ describe("PendingInvites", () => {
     const FULL = "mesh-invite2-the-full-string";
     const QR_SVG = "<svg></svg>";
     const links = (hash) => wrapper.findAll(`[data-invite="${hash}"] .invite-share-link`);
-    const answerText = () => api.mockImplementation(async (...a) => (a.length || console.log(new Error().stack), a[1].endsWith("/text") ? { invite: FULL, qr: QR_SVG } : invitesReply([KEPT, OTHER])));
+    const answerText = () => api.mockImplementation(async (method, path) => (path.endsWith("/text") ? { invite: FULL, qr: QR_SVG } : invitesReply([KEPT, OTHER])));
     afterEach(() => Reflect.deleteProperty(navigator, "clipboard"));
 
     it("shows the two links, with an icon and text, only on rows that are kept", async () => {
@@ -145,6 +145,40 @@ describe("PendingInvites", () => {
       await flushPromises();
       expect(wrapper.get(`[data-invite="${KEPT.hash}"] [role="alert"]`).text()).toContain("no longer be shown");
       expect(wrapper.get("dialog").element.open).toBe(false);
+    });
+
+    it("a refused retry after Copied hides Copied, and a later success clears the alert", async () => {
+      Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
+      api.mockResolvedValue(invitesReply([KEPT]));
+      await open();
+      answerText();
+      const row = `[data-invite="${KEPT.hash}"]`;
+      await links(KEPT.hash)[0].trigger("click");
+      await flushPromises();
+      expect(wrapper.get(`${row} [role="status"]`).text()).toBe("Copied");
+      api.mockRejectedValueOnce(new ApiError(404, "not_found", "x", { error: "not_found", message: "x" }));
+      await links(KEPT.hash)[0].trigger("click");
+      await flushPromises();
+      expect(wrapper.find(`${row} [role="status"]`).exists()).toBe(false);
+      expect(wrapper.get(`${row} [role="alert"]`).text()).toContain("no longer be shown");
+      await links(KEPT.hash)[0].trigger("click");
+      await flushPromises();
+      expect(wrapper.find(`${row} [role="alert"]`).exists()).toBe(false);
+      expect(wrapper.get(`${row} [role="status"]`).text()).toBe("Copied");
+    });
+
+    it("\"Copy invite\" without a clipboard opens the window with the string to copy by hand", async () => {
+      Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("denied"); } }, configurable: true });
+      api.mockResolvedValue(invitesReply([KEPT]));
+      await open();
+      answerText();
+      await links(KEPT.hash)[0].trigger("click");
+      await flushPromises();
+      expect(wrapper.get("dialog").element.open).toBe(true);
+      expect(wrapper.get("#invite-value").text()).toBe(FULL);
+      await wrapper.get("#invite-share-close").trigger("click");
+      await flushPromises();
+      expect(wrapper.html()).not.toContain(FULL);
     });
   });
 });

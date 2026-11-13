@@ -15,7 +15,7 @@ export interface Shown {
 }
 
 export function useKeptInvite(slot: () => string) {
-  const copied = ref<Record<string, "done" | "manual">>({});
+  const copied = ref<Record<string, "done" | "">>({});
   const failed = ref<Record<string, string>>({});
   const shown = ref<Shown | null>(null);
 
@@ -35,11 +35,15 @@ export function useKeptInvite(slot: () => string) {
     }
   }
 
-  async function copy(i: OpenInvite): Promise<void> {
+  // Returns true when the clipboard is not available: the window with the string opens for copying by hand.
+  async function copy(i: OpenInvite): Promise<boolean> {
+    copied.value = { ...copied.value, [i.hash]: "" };
     const reply = await fetchText(i);
-    if (!reply) return;
+    if (!reply) return false;
     const done = await writeClipboard(defaultHomeDeps, reply.invite);
-    copied.value = { ...copied.value, [i.hash]: done ? "done" : "manual" };
+    copied.value = { ...copied.value, [i.hash]: done ? "done" : "" };
+    if (!done) shown.value = { name: i.for_whom ?? "", text: reply.invite, qr: qrImageSrc(reply.qr ?? "") };
+    return !done;
   }
 
   // Returns true when the window should open.

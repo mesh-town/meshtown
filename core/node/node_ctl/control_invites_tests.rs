@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use bytes::Bytes;
 
+use super::super::control_invites_text::text_for;
 use super::*;
 use crate::config::config_file::{keep, kept_hashes};
 use crate::invite::store::{issue_record, IssueRecord, ISSUE_PREFIX};
@@ -15,6 +16,7 @@ use crate::transport::net::facade::test_support::{pid, secret};
 use crate::transport::net::mem::{MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
 use crate::transport::net::ReplicaEntry;
+use crate::web_gui::InviteText;
 
 const H1: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
@@ -135,6 +137,43 @@ async fn listing_prunes_used_invites() {
     assert_eq!(kept_hashes(path), BTreeSet::from([H1.to_string()]));
 }
 
+#[tokio::test]
+async fn text_is_given_only_for_own_open_kept_invite() {
+    // given: our open kept invite, another admin's open kept one, and a kept one that is not open at all
+    let rig = setup(true).await;
+    let (other, used) = ("ab".repeat(32), "cd".repeat(32));
+    rig.given_issue(rig.me, H1, None);
+    rig.given_kept(H1);
+    rig.given_issue(pid(3), &other, None);
+    rig.given_kept(&other);
+    rig.given_kept(&used);
+    // when: asked without reading the list first (a listing would prune the records)
+    let path = rig.kept.as_deref();
+    let own = rig.ask(H1, path).await.unwrap();
+    let foreign = rig.ask(&other, path).await.unwrap_err();
+    let unused = rig.ask(&used, path).await.unwrap_err();
+    let no_file = rig.ask(H1, None).await.unwrap_err();
+    // then
+    assert_eq!(own.text, "invite-text");
+    let gone = |e: &MemberError| match e {
+        MemberError::Action(ActionError::NotFound(m)) => m.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(gone(&foreign), gone(&unused));
+    assert_eq!(gone(&foreign), gone(&no_file));
+    // and: a viewer who is not an admin is refused
+    let rig = setup(false).await;
+    rig.given_kept(H1);
+    let err = text_for(&rig.store, Some(rig.verdicts()), rig.kept.as_deref(), H1).await;
+    assert!(matches!(
+        err,
+        Err(MemberError::Refused {
+            code: "not_admin",
+            ..
+        })
+    ));
+}
+
 struct Rig {
     store: crate::invite::store::Ledger,
     replica: std::sync::Arc<crate::transport::net::mem::MemReplica>,
@@ -183,6 +222,14 @@ impl Rig {
             value: Bytes::from(value),
             ts_micros: made * 1_000_000,
         });
+    }
+
+    async fn ask(
+        &self,
+        hash: &str,
+        path: Option<&std::path::Path>,
+    ) -> Result<InviteText, MemberError> {
+        text_for(&self.store, Some(self.verdicts()), path, hash).await
     }
 
     fn given_kept(&self, hash: &str) {
