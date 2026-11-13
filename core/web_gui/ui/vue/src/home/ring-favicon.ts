@@ -1,6 +1,6 @@
 /* Tab icon: the same member ring, 16×16, no text; arcs shorter than 4 px fold into roles. */
 
-import { ringArcs } from "./ring-arcs.ts";
+import { arcBusy, ringArcs } from "./ring-arcs.ts";
 import type { RingArc } from "./ring-arcs.ts";
 import type { RingRole } from "./ring-config.ts";
 import type { RingMember } from "./ring-members.ts";
@@ -11,9 +11,9 @@ const R = (SIZE - THICK) / 2;
 const C = SIZE / 2;
 const OPTS = { minArcPx: 4, keepRolePx: 4 };
 
-type Palette = Record<RingRole, string>;
-const LIGHT: Palette = { via: "#2f6fd0", client: "#af4bcd", online: "#1f8a4c", offline: "#8c8c8c" };
-const DARK: Palette = { via: "#5aaaff", client: "#af4bcd", online: "#4fbd80", offline: "#6b7780" };
+type Palette = Record<RingRole | "busy", string>;
+const LIGHT: Palette = { via: "#2f6fd0", client: "#af4bcd", online: "#1f8a4c", offline: "#8c8c8c", busy: "#d97706" };
+const DARK: Palette = { via: "#5aaaff", client: "#af4bcd", online: "#4fbd80", offline: "#6b7780", busy: "#f59e0b" };
 
 const num = (v: number): string => String(Math.round(v * 100) / 100);
 const point = (rad: number): string => `${num(C + R * Math.sin(rad))} ${num(C - R * Math.cos(rad))}`;
@@ -29,7 +29,7 @@ const stroke = (d: string, color: string): string => `<path d="${d}" stroke="${c
 export function faviconSvg(members: RingMember[], dark: boolean): string {
   const colors = dark ? DARK : LIGHT;
   const arcs = ringArcs(members, SIZE, THICK, OPTS);
-  const paths = arcs.length === 0 ? [stroke(pathD({ role: "online", members: [], startRad: 0, endRad: Math.PI * 2, lengthPx: 0 }), colors.online)] : arcs.map((a) => stroke(pathD(a), colors[a.role]));
+  const paths = arcs.length === 0 ? [stroke(pathD({ role: "online", members: [], startRad: 0, endRad: Math.PI * 2, lengthPx: 0 }), colors.online)] : arcs.map((a) => stroke(pathD(a), colors[arcBusy(a) ? "busy" : a.role]));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" height="${SIZE}" fill="none" stroke-width="${THICK}">${paths.join("")}</svg>`;
 }
 

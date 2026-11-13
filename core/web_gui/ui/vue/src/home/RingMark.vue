@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The member ring: SVG arcs by role, text in the center. Doesn't compute roles — receives ready members.
 import { computed } from "vue";
-import { arcDash, ringArcs } from "./ring-arcs.ts";
+import { arcBusy, arcDash, ringArcs } from "./ring-arcs.ts";
 import type { RingArc } from "./ring-arcs.ts";
 import type { RingMember } from "./ring-members.ts";
 import { RING } from "./ring-config.ts";
@@ -33,7 +33,7 @@ function pathOf(arc: RingArc): string {
   <div class="ring-mark" :class="lenClass">
     <svg :viewBox="`0 0 ${size} ${size}`" :width="size" :height="size" aria-hidden="true">
       <circle v-if="arcs.length === 0" class="ring-empty" :cx="mid" :cy="mid" :r="radius" fill="none" />
-      <path v-for="(arc, i) in arcs" :key="i" :class="['ring-arc', 'ring-' + arc.role, { 'ring-relayed': dashOf(arc) }]" :d="pathOf(arc)" :stroke-width="thickness" :stroke-dasharray="dashOf(arc) ?? undefined" fill="none">
+      <path v-for="(arc, i) in arcs" :key="i" :class="['ring-arc', 'ring-' + arc.role, { 'ring-relayed': dashOf(arc), 'ring-busy': arcBusy(arc) }]" :d="pathOf(arc)" :stroke-width="thickness" :stroke-dasharray="dashOf(arc) ?? undefined" fill="none">
         <title>{{ arcTitle(arc, hasVia) }}</title>
       </path>
     </svg>
