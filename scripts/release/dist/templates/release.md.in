@@ -2,8 +2,11 @@
 
 Prebuilt binaries and installers of Mesh Town @VERSION@ for macOS, Windows, Linux and OpenWrt routers.
 
+**Android:** [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk), the newest build
+(64-bit ARM, Android 7.0 or newer): open the link on the phone, open the file and allow installing from this source.
+
 - macOS: `MeshTown-macos-<arch>-@VERSION@.zip`
-- Windows: `meshtown-@VERSION@-x86_64-pc-windows-msvc.zip` (with the tray icon) and the `meshtown-cli-…` archive (console only)
+- Windows: `meshtown-setup-@VERSION@.exe` (installer), `meshtown-@VERSION@-x86_64-pc-windows-msvc.zip` (with the tray icon) and the `meshtown-cli-…` archive (console only)
 - Linux, OpenWrt and Keenetic: `meshtown-<version>-<target>.tar.gz` and `meshtown-cli-<version>-<target>.tar.gz`
 
 Check a download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missing`) before running it.

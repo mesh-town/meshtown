@@ -82,10 +82,15 @@ jobs:
           cat SHA256SUMS
       - name: Create release
         run: |
+          set -euo pipefail
+          # The download table first (people look for the APK here), then the generated changelog.
+          . scripts/release/dist/lib.sh
+          render scripts/release/dist/templates/source-release.md.in "$VERSION" /dev/null > "$RUNNER_TEMP/notes.md"
           gh release create "${GITHUB_REF_NAME}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
             --title "${GITHUB_REF_NAME}" \
             --verify-tag \
+            --notes-file "$RUNNER_TEMP/notes.md" \
             --generate-notes
 
   windows-installer:

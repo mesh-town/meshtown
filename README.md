@@ -12,10 +12,54 @@ create in someone else's service.
 
 Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik routers.
 
-**Contents:** [Who it is for](#who-it-is-for) · [Why it fits](#why-it-fits) · [How it differs](#how-it-differs) ·
-[Not for you if](#not-for-you-if) · [Several networks](#several-networks-who-sees-what) · [Exit node](#also-use-a-member-as-an-exit-node) · [Quick start](#quick-start) ·
-[Install](#install) · [Safety](#safety) · [Limitations](#limitations) · [Building](#building) ·
+**Download:** [Android (APK)](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) ·
+[Windows](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-setup.exe) ·
+[macOS](#install) · [Linux](#install) · [routers](#install) — every system and command in [Install](#install).
+
+**Contents:** [Install](#install) · [Quick start](#quick-start) · [Who it is for](#who-it-is-for) · [Why it fits](#why-it-fits) ·
+[How it differs](#how-it-differs) · [Not for you if](#not-for-you-if) · [Several networks](#several-networks-who-sees-what) ·
+[Exit node](#also-use-a-member-as-an-exit-node) · [Safety](#safety) · [Limitations](#limitations) · [Building](#building) ·
 [Documentation](#documentation)
+
+## Install
+
+The latest build for every system. The same files are in [meshtown-dist](https://github.com/mesh-town/meshtown-dist);
+earlier versions and armv7 or MIPS builds are in its [releases](https://github.com/mesh-town/meshtown-dist/releases).
+
+| System | Command or file |
+|---|---|
+| macOS | `brew install mesh-town/macos/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
+| Windows | [meshtown-setup.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-setup.exe) (installer), or [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) (tray, no installation) or [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
+| Linux | [x86_64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) · [aarch64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
+| Debian, Ubuntu | [meshtown_amd64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb) · [meshtown_arm64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_arm64.deb), then `sudo apt install ./meshtown_<arch>.deb`; updates come with `apt upgrade` ([details](docs/INSTALL.md#debian-ubuntu-apt)) |
+| Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk): open the link on the phone, open the downloaded file and allow installing from this source when asked (64-bit ARM, Android 7.0 or newer; the [Android guide](https://mesh-town.github.io/install/android/)) |
+| OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
+| Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |
+| MikroTik (RouterOS 7) | container image `ghcr.io/mesh-town/meshtown:latest` ([setup](docs/MIKROTIK.md)) |
+
+On every system `meshtown` is the build with the tray icon and `meshtown-cli` the node in a terminal; they share
+settings, so run one at a time. The macOS zip and the Windows binary are not notarized or signed, so the first launch
+needs a confirmation. Gatekeeper, console-only Linux builds, router details, versioned archives and checksums:
+[docs/INSTALL.md](docs/INSTALL.md).
+
+## Quick start
+
+1. [Install](#install) and start Mesh Town. Without arguments `meshtown` opens the tray app; in a terminal or on a
+   server use `meshtown-cli`.
+2. Open the node page from the tray menu, or with the sign-in link printed at start
+   (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
+3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
+   `meshtown join mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
+4. **Invite a member** on the page gives a single-use string for the next device or person. Invite from the tab of the network the person belongs to; only an admin can.
+5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using
+   the proxy from step 6, a shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
+6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
+   names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`. Instead of typing the address, a browser can take
+   the node's auto-config file, `http://127.0.0.1:1080/proxy.pac` (the setup assistant on the page asks whether to set
+   it up for the whole system or for a browser). With `socks.strict` on, ordinary sites stay closed while the node is
+   not running instead of opening directly ([docs/CONFIG-FILE.md](docs/CONFIG-FILE.md)).
+
+Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md).
 
 ## Who it is for
 
@@ -95,43 +139,6 @@ local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port) and its connections l
 example, to reach a service that accepts connections only from your office or home IP. Any member can act as an exit
 node, serving only members of its network. SOCKS5 carries UDP too (`UDP ASSOCIATE`), so QUIC and voice calls can
 go out the same way.
-
-## Quick start
-
-1. [Install](#install) and start Mesh Town. Without arguments `meshtown` opens the tray app; in a terminal or on a
-   server use `meshtown-cli`.
-2. Open the node page from the tray menu, or with the sign-in link printed at start
-   (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
-3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
-   `meshtown join mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
-4. **Invite a member** on the page gives a single-use string for the next device or person. Invite from the tab of the network the person belongs to; only an admin can.
-5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using
-   the proxy from step 6, a shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
-6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
-   names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`. Instead of typing the address, a browser can take
-   the node's auto-config file, `http://127.0.0.1:1080/proxy.pac` (the setup assistant on the page asks whether to set
-   it up for the whole system or for a browser). With `socks.strict` on, ordinary sites stay closed while the node is
-   not running instead of opening directly ([docs/CONFIG-FILE.md](docs/CONFIG-FILE.md)).
-
-Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md).
-
-## Install
-
-| System | Command or file |
-|---|---|
-| macOS | `brew install mesh-town/macos/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
-| Windows | [meshtown-setup.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-setup.exe) (installer), or [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) (tray, no installation) or [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
-| Linux | [x86_64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) · [aarch64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
-| Debian, Ubuntu | [meshtown_amd64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb) · [meshtown_arm64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_arm64.deb), then `sudo apt install ./meshtown_<arch>.deb`; updates come with `apt upgrade` ([details](docs/INSTALL.md#debian-ubuntu-apt)) |
-| Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) (arm64-v8a, Android 7.0 or newer) |
-| OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
-| Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |
-| MikroTik (RouterOS 7) | container image `ghcr.io/mesh-town/meshtown:latest` ([setup](docs/MIKROTIK.md)) |
-
-On every system `meshtown` is the build with the tray icon and `meshtown-cli` the node in a terminal; they share
-settings, so run one at a time. The macOS zip and the Windows binary are not notarized or signed, so the first launch
-needs a confirmation. Gatekeeper, console-only Linux builds, router details, versioned archives and checksums:
-[docs/INSTALL.md](docs/INSTALL.md).
 
 ## Safety
 
