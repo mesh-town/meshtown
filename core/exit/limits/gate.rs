@@ -50,8 +50,6 @@ impl Busy {
     }
 }
 
-// Read by the state snapshot in a later step.
-#[allow(dead_code)]
 /// What the owner's page shows about the load of the exit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LoadView {
@@ -192,13 +190,11 @@ impl ExitLimits {
         self.0.load.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    #[allow(dead_code)]
     /// Why the exit is overloaded at `now`, or `None` while it is not.
     pub(crate) fn overloaded(&self, now: Instant) -> Option<Reason> {
         self.meter().overloaded(now)
     }
 
-    #[allow(dead_code)]
     /// Numbers for the owner's page at `now`: streams, caps and the meter's ten-minute counts.
     pub(crate) fn load_view(&self, now: Instant) -> LoadView {
         LoadView {

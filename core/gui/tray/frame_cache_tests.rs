@@ -239,6 +239,7 @@ fn key(sectors: u16, lit: Option<u16>) -> IconPicture {
         ring: Some(Ring::uniform(RingRole::Offline, sectors)),
         disk: None,
         alert: false,
+        badge: false,
         lit,
     }
 }

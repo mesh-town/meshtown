@@ -281,6 +281,7 @@ mod ring_from_real_snapshot {
                 domains: 2,
                 clients: clients.iter().map(|id| id.to_string()).collect(),
                 interface: None,
+                load: None,
             },
             peers: vec![
                 member(ME, true),

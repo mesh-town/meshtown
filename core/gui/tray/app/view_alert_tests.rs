@@ -27,6 +27,7 @@ fn picture(color: TrayColor, ring: Option<Ring>) -> IconPicture {
         ring,
         disk,
         alert: false,
+        badge: false,
         lit: None,
     }
     .with_alert(true)
@@ -47,6 +48,7 @@ fn alert_differs_from_no_alert() {
         ring: None,
         disk: None,
         alert: false,
+        badge: false,
         lit: None,
     };
     assert_ne!(base.with_alert(true), base.with_alert(false));

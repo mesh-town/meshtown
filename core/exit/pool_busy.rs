@@ -38,7 +38,6 @@ impl PoolBusy {
             .record(answer, now);
     }
 
-    #[allow(dead_code)]
     pub(super) fn refusing(&self, peer: PeerId, now: Instant) -> Option<(u64, u64)> {
         let mut all = self.answers.lock().unwrap_or_else(|e| e.into_inner());
         all.get_mut(&peer)?.refusing(now)

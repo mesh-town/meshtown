@@ -128,8 +128,6 @@ impl PeerConnPool {
     }
 
     /// `Some((refused, attempts))` of the last two minutes while `peer` refuses us, else `None`.
-    // The reader (the state snapshot) comes in a later step.
-    #[allow(dead_code)]
     pub(crate) fn exit_busy(&self, peer: PeerId, now: std::time::Instant) -> Option<(u64, u64)> {
         self.busy.refusing(peer, now)
     }

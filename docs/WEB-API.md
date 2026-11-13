@@ -189,7 +189,9 @@ Example (the values are made up, but all fields are required; `null` is allowed 
   },
   "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080", "strict": false },
-  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"], "interface": null },
+  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"], "interface": null,
+    "load": { "streams": 12, "limit": 256, "limit_auto": 512, "overloaded": null, "admitted": 940, "refused": 3,
+              "members": [{ "id_full": "9f4a0c71e8fb...", "admitted": 800, "refused": 3 }], "elsewhere_refused": 0 } },
   "transport": {
     "self_path": "direct",
     "relay": { "connected": true, "url": "relay.example.net", "serving": false },
@@ -208,19 +210,19 @@ Example (the values are made up, but all fields are required; `null` is allowed 
       "id": "254b24c7d9", "id_full": "254b24c7d9e8...", "name": "finch-unwary",
       "self": true, "online": true, "path": null, "rtt_ms": null, "exit": true,
       "version": "0.5.0", "checked": 7, "stale": false, "last_seen_sec": 0,
-      "through_peer_bps": 0, "through_us_bps": 0
+      "through_peer_bps": 0, "through_us_bps": 0, "overloaded": null
     },
     {
       "id": "9f4a0c71e8", "id_full": "9f4a0c71e8fb...", "name": "red-pond",
       "self": false, "online": true, "path": "relay", "rtt_ms": 186, "exit": true,
       "version": "0.5.0", "checked": 5, "stale": false, "last_seen_sec": 12,
-      "through_peer_bps": 1048576, "through_us_bps": 0
+      "through_peer_bps": 1048576, "through_us_bps": 0, "overloaded": "share"
     },
     {
       "id": "c03b55d2af", "id_full": "c03b55d2af71...", "name": "willow-candid",
       "self": false, "online": false, "path": null, "rtt_ms": null, "exit": null,
       "version": null, "checked": 7, "stale": true, "last_seen_sec": 254,
-      "through_peer_bps": 0, "through_us_bps": 0
+      "through_peer_bps": 0, "through_us_bps": 0, "overloaded": null
     }
   ],
   "domains": [
@@ -248,7 +250,8 @@ Example (the values are made up, but all fields are required; `null` is allowed 
     "exits": [
       {
         "id": "1bd2ec32a5", "id_full": "1bd2ec32a56f...", "name": null,
-        "online": true, "exit": true, "active": true
+        "online": true, "exit": true, "active": true,
+        "overloaded": "limit", "turned_away": { "refused": 7, "attempts": 20 }, "busy": true
       }
     ]
   },

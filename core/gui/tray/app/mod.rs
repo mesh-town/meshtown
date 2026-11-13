@@ -58,6 +58,7 @@ pub(crate) mod tray_texts;
 pub(crate) mod view;
 #[cfg(feature = "gui")]
 pub(crate) mod view_alert;
+pub(crate) mod view_badge;
 #[cfg(feature = "gui")]
 pub(crate) mod view_disk;
 #[cfg(feature = "gui")]

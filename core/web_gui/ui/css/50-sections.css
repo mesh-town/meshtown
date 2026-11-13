@@ -137,6 +137,8 @@ details.removed>summary{cursor:pointer;color:var(--fg-muted);}
 .member-dialog label[for="member-reason"]{display:block;margin:12px 0 4px;}
 .member-dialog input#member-reason{width:100%;box-sizing:border-box;margin-bottom:8px;}
 .badge-admin{background:var(--grey-bg);color:var(--fg-muted);}
+.badge-busy{background:var(--orange-bg);color:var(--orange);}
+.exit-busy{color:var(--orange);}
 /* "More options" under the setup step: a closed disclosure with the strict-mode question inside. */
 .more-options{margin:12px 0 0;}
 .more-options > summary{cursor:pointer;color:var(--accent);list-style:none;}

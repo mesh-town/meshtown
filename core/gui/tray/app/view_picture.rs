@@ -10,6 +10,7 @@
 
 use super::view::{icon_rgba, NodeState, PageState, TrayColor, View, ICON_SIDE_PX};
 use super::view_alert::paint_alert;
+use super::view_badge::paint_badge;
 use super::view_disk::{paint_disk, Disk};
 use super::view_ring::{ring_to_draw, Ring, RingRole};
 use super::view_ring_paint::ring_rgba_lit;
@@ -22,6 +23,8 @@ pub struct IconPicture {
     pub ring: Option<Ring>,
     pub disk: Option<Disk>,
     pub alert: bool,
+    /// The yellow dot of an overloaded own exit in the top-left corner (only with a ring).
+    pub badge: bool,
     /// The number of the white (highlighted) sector of the ring, if any.
     pub lit: Option<u16>,
 }
@@ -101,6 +104,7 @@ pub fn icon_picture(view: View) -> IconPicture {
         ring,
         disk,
         alert: false,
+        badge: ring.is_some_and(|r| r.badge()),
         lit: None,
     }
 }
@@ -109,14 +113,21 @@ pub fn icon_picture(view: View) -> IconPicture {
 /// from the cache by color. With the mark there is always a raster (a solid base only for `ICON_SIDE_PX`).
 pub fn picture_rgba(picture: &IconPicture, side: u32) -> Option<Vec<u8>> {
     let mut rgba = base_rgba(picture, side)?;
-    if picture.alert {
-        paint_alert(&mut rgba, side);
-        return Some(rgba);
-    }
-    if let Some(disk) = picture.disk {
-        paint_disk(&mut rgba, side, disk);
+    paint_centre(&mut rgba, picture, side);
+    if picture.badge && picture.ring.is_some() {
+        paint_badge(&mut rgba, side);
     }
     Some(rgba)
+}
+
+/// The alert mark, or else the speed disk, in the centre.
+fn paint_centre(rgba: &mut [u8], picture: &IconPicture, side: u32) {
+    if picture.alert {
+        return paint_alert(rgba, side);
+    }
+    if let Some(disk) = picture.disk {
+        paint_disk(rgba, side, disk);
+    }
 }
 
 /// The raster under the mark or disk: the ring, or (with the mark only) the solid circle of the color.

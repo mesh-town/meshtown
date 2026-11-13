@@ -15,6 +15,7 @@ use crate::proxy::route::{self, Route};
 use crate::web_gui::{ChosenExit, PeerInfo, RouteMode, RouteState};
 
 use super::build::Inputs;
+use super::exit_load::{chosen_reason, turned_away_of};
 
 /// Builds the snapshot's `route`. `chosen` is the list of chosen exits in `route.exits` order.
 pub(super) fn route_state(chosen: &[PeerId], i: &Inputs<'_>, peers: &[PeerInfo]) -> RouteState {
@@ -66,7 +67,12 @@ fn chosen_exit(
     } else {
         None
     };
+    let overloaded = chosen_reason(i, &id);
+    let turned_away = turned_away_of(i, &id);
     ChosenExit {
+        busy: overloaded.is_some() || turned_away.is_some(),
+        overloaded,
+        turned_away,
         id: output::short_peer_id(&id),
         id_full,
         name,

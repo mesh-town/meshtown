@@ -5,7 +5,7 @@ import type { ChosenExit, CheckInfo, DomainInfo, NodeState, PathKind, PeerInfo }
 import { forDevice } from "../common/device.ts";
 import { peerLabel } from "../common/words.ts";
 import { BADGE_BLOCKED } from "../members/members-texts.ts";
-import { HOME_EXIT_NOT_OFFERED, HOME_LINK_DIRECT, HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_LINK_RELAY, rttMsText } from "./home-flow-texts.ts";
+import { HOME_EXIT_NOT_OFFERED, HOME_EXIT_OVERLOADED, HOME_LINK_DIRECT, HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_LINK_RELAY, rttMsText } from "./home-flow-texts.ts";
 
 /** A row of the "Exit via…" list. */
 export interface ExitCandidate {
@@ -20,6 +20,8 @@ export interface ExitCandidate {
   /** Chosen, the member is known, and it does not offer an exit any more. */
   notExit?: boolean;
   blocked?: boolean;
+  /** The member announced an overload (the reason); `null` — no. */
+  overloaded?: string | null;
 }
 
 interface ExitItem {
@@ -63,6 +65,11 @@ export function exitMetaText(item: Pick<ExitCandidate, "online" | "path" | "rttM
   return notOffered(item) ? HOME_EXIT_NOT_OFFERED : onlineMeta(item);
 }
 
+// The orange word after the meta line of an overloaded candidate; "" — not overloaded.
+export function exitBusyMark(item: Pick<ExitCandidate, "online" | "overloaded">): string {
+  return item.online && item.overloaded ? HOME_EXIT_OVERLOADED : "";
+}
+
 // The row shows "not an exit" (and its hint) only when nothing stronger — blocked, offline — is said about it.
 export function notOffered(item: Pick<ExitCandidate, "online" | "blocked" | "notExit">): boolean {
   return !!item.notExit && item.online && !item.blocked;
@@ -89,6 +96,7 @@ function exitCandidate(idFull: string, peer: PeerInfo | undefined, stateEntry: C
     path: source.path || null,
     rttMs: source.rtt_ms != null ? source.rtt_ms : null,
     checked,
+    overloaded: peer ? peer.overloaded ?? null : null,
     notExit: checked && !!peer && peer.exit !== true,
   };
 }
