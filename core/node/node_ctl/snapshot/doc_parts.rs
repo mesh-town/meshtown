@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use crate::exit::load::read_exit_loads;
 use crate::members::stale_peers;
 use crate::node::node_state;
 use crate::node::program_version;
@@ -45,9 +46,9 @@ pub(super) async fn doc_seen_of(node: &RunningNode, now_unix: u64) -> (HashMap<P
     .await
 }
 
-/// Seven document reads under a timeout (`domains.list()`, `checks.check_views()`,
+/// Eight document reads under a timeout (`domains.list()`, `checks.check_views()`,
 /// `node_state::read_exit_flags`, `geoip::read_countries`, program versions, `ports_doc.read_all()`,
-/// `read_doc_seen`) and the "all succeeded" flag. Called only by `DocCache::read_doc_parts_cached`.
+/// `read_doc_seen`, the exit overload records) and the "all succeeded" flag. Called only by `DocCache::read_doc_parts_cached`.
 pub(super) async fn read_doc_parts(node: &RunningNode, now_unix: u64) -> (DocParts, bool) {
     let (list, list_ok) = read_or(node.domains.list(), Vec::new()).await;
     let (views, views_ok) = read_or(node.checks.check_views(), Vec::new()).await;
@@ -58,8 +59,19 @@ pub(super) async fn read_doc_parts(node: &RunningNode, now_unix: u64) -> (DocPar
     let (program_versions, versions_ok) = program_versions_of(node).await;
     let (port_views, ports_ok) = read_or(node.ports_doc.read_all(), Vec::new()).await;
     let (doc_seen, doc_seen_ok) = doc_seen_of(node, now_unix).await;
-    let read_complete =
-        list_ok && views_ok && exits_ok && countries_ok && ports_ok && versions_ok && doc_seen_ok;
+    let (exit_loads, loads_ok) = read_or(read_exit_loads(r.as_ref()), HashMap::new()).await;
+    let read_complete = [
+        list_ok,
+        views_ok,
+        exits_ok,
+        countries_ok,
+        ports_ok,
+        versions_ok,
+        doc_seen_ok,
+        loads_ok,
+    ]
+    .iter()
+    .all(|ok| *ok);
     let parts = DocParts {
         list,
         views,
@@ -68,6 +80,7 @@ pub(super) async fn read_doc_parts(node: &RunningNode, now_unix: u64) -> (DocPar
         program_versions,
         port_views,
         doc_seen,
+        exit_loads,
     };
     (parts, read_complete)
 }

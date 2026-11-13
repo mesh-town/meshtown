@@ -50,8 +50,6 @@ impl Busy {
     }
 }
 
-// Read by the state snapshot in a later step.
-#[allow(dead_code)]
 /// What the owner's page shows about the load of the exit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LoadView {
@@ -197,7 +195,6 @@ impl ExitLimits {
         self.meter().overloaded(now)
     }
 
-    #[allow(dead_code)]
     /// Numbers for the owner's page at `now`: streams, caps and the meter's ten-minute counts.
     pub(crate) fn load_view(&self, now: Instant) -> LoadView {
         LoadView {

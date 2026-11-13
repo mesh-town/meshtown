@@ -12,6 +12,7 @@ use crate::site_checks::checks::CheckView;
 use crate::web_gui::PeerInfo;
 
 use super::build::Inputs;
+use super::exit_load::{own_reason, record_reason};
 
 /// A domain is considered stale (`stale`) if its freshest record is older than this threshold.
 const STALE_AFTER_SEC: u64 = 7_200;
@@ -84,6 +85,7 @@ fn self_peer_info(i: &Inputs<'_>) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        overloaded: own_reason(i),
     }
 }
 
@@ -123,6 +125,7 @@ fn other_peer_info(i: &Inputs<'_>, ev: &Evidence<'_>, id: PeerId) -> PeerInfo {
         last_seen_sec,
         through_peer_bps: rate.through_peer_bps,
         through_us_bps: rate.through_us_bps,
+        overloaded: record_reason(i, &id),
     }
 }
 

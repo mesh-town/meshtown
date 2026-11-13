@@ -58,6 +58,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         now_instant: Instant::now(),
         cached_seen: HashMap::new(),
         doc_seen: HashMap::new(),
+        load: Default::default(),
     }
 }
 
@@ -79,6 +80,7 @@ fn peer_info(id: PeerId, online: bool, exit: Option<bool>) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        overloaded: None,
     }
 }
 

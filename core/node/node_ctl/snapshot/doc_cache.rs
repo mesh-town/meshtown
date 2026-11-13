@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::transport::net::PeerId;
 
+use crate::exit::load::ExitLoad;
 use crate::node::RunningNode;
 use crate::ports_sharing::PortView;
 use crate::site_checks::checks::CheckView;
@@ -29,6 +30,8 @@ pub(super) struct DocParts {
     pub program_versions: HashMap<PeerId, String>,
     pub port_views: Vec<PortView>,
     pub doc_seen: HashMap<PeerId, u64>,
+    /// Overload records of the exits (the value and the time it was written); the age is judged at assembly.
+    pub exit_loads: HashMap<PeerId, ExitLoad>,
 }
 
 /// Captured document change counters and the moment of the read.

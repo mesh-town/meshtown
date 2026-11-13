@@ -22,7 +22,8 @@ use crate::web_gui::{MembersInfo, MembersReply, NodeSnapshot, PortsInfo, SocksIn
 
 use super::admission::admission_refused;
 use super::build::{build, socks_lan, Inputs};
-use super::doc_cache::{DocCache, DocParts};
+use super::doc_cache::DocCache;
+use super::exit_load::LoadInputs;
 use super::ports::build_ports;
 
 /// Addresses of this machine on the networks open to the proxy (empty with `localhost`).
@@ -79,16 +80,6 @@ pub(crate) async fn collect(
 ) -> Collected {
     let now_unix = unix_now();
     let (parts, partial) = cache.read_doc_parts_cached(node, now_unix).await;
-    let DocParts {
-        list,
-        views,
-        exits,
-        countries,
-        program_versions,
-        port_views,
-        doc_seen,
-    } = parts;
-
     let face = node.proxy_face.borrow().clone();
     let inputs = Inputs {
         id: node.id,
@@ -107,12 +98,12 @@ pub(crate) async fn collect(
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
         relay_serving: *node.relay_serving.borrow(),
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
-        exits,
-        countries: country_texts(countries),
-        program_versions: with_own_version(node, program_versions),
+        exits: parts.exits,
+        countries: country_texts(parts.countries),
+        program_versions: with_own_version(node, parts.program_versions),
         chosen_exits: node.route.chosen_exits(),
-        domain_names: list,
-        check_views: views,
+        domain_names: parts.list,
+        check_views: parts.views,
         in_progress: node.checks.domains_in_progress(),
         exit_checks: node.checks.exit_results(),
         telemetry: node.telemetry.view(),
@@ -120,13 +111,31 @@ pub(crate) async fn collect(
         now_unix,
         now_instant: Instant::now(),
         cached_seen: (*node.cached_peers).clone(),
-        doc_seen,
+        doc_seen: parts.doc_seen,
+        load: LoadInputs {
+            records: parts.exit_loads,
+            own: own_load_of(node),
+            turned_away: turned_away_of(node),
+        },
     };
 
     let mut collected = build(inputs);
-    collected.snap.ports = ports_of(node, &port_views);
+    collected.snap.ports = ports_of(node, &parts.port_views);
     collected.partial = partial;
     collected
+}
+
+/// The live load of the process's exit, only while the exit of this network is on.
+fn own_load_of(node: &RunningNode) -> Option<crate::exit::LoadView> {
+    let on = node.exit_on.load(Ordering::Relaxed);
+    on.then(|| crate::exit::ExitLimits::process().load_view(Instant::now()))
+}
+
+/// This client's local refusal signs for the chosen exits, from the pool of this network.
+fn turned_away_of(node: &RunningNode) -> HashMap<PeerId, (u64, u64)> {
+    let now = Instant::now();
+    let pool = &node.proxy.pool;
+    super::exit_load::turned_away_map(&node.route.chosen_exits(), |id| pool.exit_busy(id, now))
 }
 
 /// The configured exit interface with its live state, if any.

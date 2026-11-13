@@ -9,8 +9,6 @@
 //! `verdict` — the pure state function and its constants; `meter` — the counter the gate writes to.
 
 mod announce;
-// The reader of others' records is used by the state snapshot in a later step.
-#[allow(dead_code)]
 mod board;
 mod buckets;
 mod client;
@@ -19,10 +17,10 @@ mod meter;
 mod verdict;
 
 pub use announce::run_exit_load_announce;
-// Read by the state snapshot in a later step.
-#[allow(unused_imports)]
 pub(crate) use board::{read_exit_loads, Cause, ExitLoad};
 pub(crate) use client::{Answer, ExitAnswers};
 pub(crate) use counts::Outcome;
+#[cfg(test)]
+pub(crate) use meter::MemberLoad;
 pub(crate) use meter::{LoadSnapshot, Meter};
 pub(crate) use verdict::Reason;
