@@ -10,8 +10,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use tokio::sync::Notify;
-use tokio::time::timeout;
 
 use super::board::{encode, KEY};
 use super::verdict::Reason;
@@ -118,13 +116,12 @@ fn log(action: Action, was_live: bool) {
     }
 }
 
-/// Keeps the record in line with the meter for one network until aborted. `changed` is the same alarm that
-/// `set_exit_enabled` rings, so switching the exit off clears the record without waiting for the timer.
+/// Keeps the record in line with the meter for one network until aborted. It only ticks every `STEP`: it has no
+/// alarm of its own, so switching the exit off clears the record on the next step.
 pub async fn run_exit_load_announce(
     r: Arc<dyn Replica>,
     exit_on: Arc<AtomicBool>,
     limits: ExitLimits,
-    changed: Arc<Notify>,
 ) {
     let mut announcer = Announcer::default();
     loop {
@@ -136,7 +133,7 @@ pub async fn run_exit_load_announce(
         if let Err(e) = announcer.step(r.as_ref(), want, tick).await {
             say("exit", format!("overload record not written: {e:#}"));
         }
-        let _ = timeout(STEP, changed.notified()).await;
+        tokio::time::sleep(STEP).await;
     }
 }
 

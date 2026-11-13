@@ -208,7 +208,6 @@ async fn start_domain_background(
             domain_list.shared_replica(),
             net.exit_on.clone(),
             crate::exit::ExitLimits::process(),
-            net.exit_announce_wakeup.clone(),
         ))
         .abort_handle(),
     );
