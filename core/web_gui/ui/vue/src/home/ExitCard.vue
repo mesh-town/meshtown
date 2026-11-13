@@ -6,7 +6,7 @@
 import { inject } from "vue";
 import { exitViaText } from "../common/words.ts";
 import { STORE_KEY } from "../core/store.ts";
-import { countryTag, exitMetaText, exitValue, notOffered } from "./exit-list.ts";
+import { countryTag, exitMetaText, exitBusyMark, exitValue, notOffered } from "./exit-list.ts";
 import {
   HOME_EXIT_DIRECT, HOME_EXIT_EXPLAIN, HOME_EXIT_LIST_HINT, HOME_EXIT_NONE, HOME_EXIT_SEARCHING, HOME_EXIT_TITLE, HOME_FIND_ARIA, HOME_FIND_BTN, HOME_FIND_LEAD,
   HOME_FIND_NO_NET, HOME_FIND_PLACEHOLDER, findCheckingText, findEmptyText, findOkText,
@@ -28,7 +28,7 @@ const { form, candidates, exitGroups, multi, findView, hasNet, searching, warnin
       <template v-for="g in exitGroups" :key="g.slot">
         <h3 v-if="multi" class="exit-group-title" :data-slot="g.slot">{{ g.title }}</h3>
         <template v-for="c in g.items" :key="c.idFull">
-        <label class="exit-row"><input type="radio" name="exit-choice" class="exit-choice" :data-id="c.idFull" :data-slot="g.slot" :value="exitValue(g.slot, c.idFull, multi)" :disabled="c.blocked" v-model="form.exitChoice" @change="h.chooseExit(exitValue(g.slot, c.idFull, multi))"><span class="exit-label-text" :data-id="c.idFull">{{ c.label }}{{ countryTag(c) }}</span><span class="exit-meta" :data-id="c.idFull">{{ exitMetaText(c) }}</span></label>
+        <label class="exit-row"><input type="radio" name="exit-choice" class="exit-choice" :data-id="c.idFull" :data-slot="g.slot" :value="exitValue(g.slot, c.idFull, multi)" :disabled="c.blocked" v-model="form.exitChoice" @change="h.chooseExit(exitValue(g.slot, c.idFull, multi))"><span class="exit-label-text" :data-id="c.idFull">{{ c.label }}{{ countryTag(c) }}</span><span class="exit-meta" :data-id="c.idFull">{{ exitMetaText(c) }}<span v-if="exitBusyMark(c)" class="exit-busy">{{ exitBusyMark(c) }}</span></span></label>
         <p v-if="notOffered(c)" class="hint alert exit-not-offered" :data-slot="g.slot">{{ NETS_EXIT_NOT_OFFERED(c.label) }}</p>
         </template>
         <p v-if="multi && !g.items.length" class="hint exit-group-none" :data-slot="g.slot">{{ NETS_EXIT_NONE_IN }}</p>

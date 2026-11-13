@@ -23,6 +23,7 @@
   .dot-green{background:var(--green);}
   .dot-grey{background:var(--grey);}
   .dot-red{background:var(--red);}
+  .dot-orange{background:var(--busy);}
   .status .dot{margin-right:0;}
   @media (max-width:480px){.status{align-items:flex-start;}.status .dot{margin-top:5px;}.status-text{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}}
 
