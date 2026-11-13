@@ -12,31 +12,21 @@ const SECRET = "mesh-invite2-SECRETSECRET";
 const WARN_ISSUER_ONLY = "Only this computer can let them in — don't turn it off until the new member joins.";
 
 describe("requestInvite", () => {
-  describe("clipboard available", () => {
-    it("\"copied\", text is the invite, netId is the network's id_hex at request time", async () => {
+  describe("a successful request", () => {
+    it("\"ready\", text is the invite, netId is the network's id_hex at request time, the clipboard is not touched", async () => {
       const w = setup();
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "copied");
+      assert.equal(await requestInvite(w.inv, w.store, w.deps), "ready");
       assert.deepEqual(w.calls, [["GET", "/api/network/invite"]]);
       assert.equal(w.inv.text, SECRET);
       assert.equal(w.inv.netId, "net-a");
-      assert.deepEqual(w.written, [SECRET]);
-      assert.equal(w.inv.status, "✓ Invite copied — paste it into a private message");
+      assert.deepEqual(w.written, []);
+      assert.equal(w.inv.status, "");
     });
-  });
 
-  describe("no clipboard", () => {
-    it("\"manual\", the string is visible, the status asks to copy manually", async () => {
+    it("without a clipboard it is the same \"ready\"", async () => {
       const w = setup({ clipboard: null });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "manual");
+      assert.equal(await requestInvite(w.inv, w.store, w.deps), "ready");
       assert.equal(w.inv.text, SECRET);
-      assert.match(w.inv.status, /^Clipboard unavailable — select the invite below/);
-    });
-
-    it("writeText rejected — same \"manual\"", async () => {
-      const w = setup({ clipboard: { writeText: async () => { throw new Error("denied"); } } });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "manual");
-      assert.equal(w.inv.text, SECRET);
-      assert.match(w.inv.status, /manually/);
     });
   });
 
@@ -112,13 +102,13 @@ describe("createInviteState", () => {
 });
 
 describe("resetInviteIfNetChanged", () => {
-  const shown = () => ({ text: SECRET, netId: "net-a", busy: false, status: "copied", warning: WARN_ISSUER_ONLY });
+  const shown = () => ({ text: SECRET, netId: "net-a", busy: false, status: "x", warning: WARN_ISSUER_ONLY });
 
   it("same network — string and warning intact", () => {
     const inv = shown();
     resetInviteIfNetChanged(inv, "net-a");
     assert.equal(inv.text, SECRET);
-    assert.equal(inv.status, "copied");
+    assert.equal(inv.status, "x");
     assert.equal(inv.warning, WARN_ISSUER_ONLY);
   });
 

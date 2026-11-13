@@ -82,7 +82,7 @@ describe("InviteCard: the reach warning", () => {
     it("it is <p class=\"hint hint-warn\"> right after the invite string, without style and title", () => {
       const { wrapper } = mountInvite();
       const warning = wrapper.get(WARNING);
-      expect(wrapper.get("#invite-value-wrap").element.nextElementSibling).toBe(warning.element);
+      expect(wrapper.get("dialog.invite-share-dialog").element.contains(warning.element), "the warning lives in the share window").toBe(true);
       expect(warning.element.tagName).toBe("P");
       expect(warning.classes()).toEqual(expect.arrayContaining(["hint", "hint-warn"]));
       expect(warning.attributes("style")).toBeUndefined();
@@ -275,9 +275,9 @@ describe("InviteCard: only you in the network", () => {
 });
 
 describe("InviteCard: the form and the hint", () => {
-  const HINT = "The invite is copied after you confirm the name. It works once, for 24 hours — send it to one person in a private message.";
+  const HINT = "After you confirm the name, a window shows how to send the invite. It works once, for 24 hours — send it to one person in a private message.";
 
-  it("the hint is two sentences: when the invite is copied, and how long it lives", () => {
+  it("the hint is two sentences: where the invite is shown, and how long it lives", () => {
     const { wrapper } = mountInvite();
     const text = wrapper.get("#invite-hint").text();
     expect(text).toBe(HINT);
@@ -286,15 +286,11 @@ describe("InviteCard: the form and the hint", () => {
 });
 
 describe("InviteCard: after the click", () => {
-  beforeEach(() => {
-    Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true });
-  });
-  afterEach(() => Reflect.deleteProperty(navigator, "clipboard"));
-
-  it("the status says \"✓ Invite copied — paste it into a private message\"", async () => {
+  it("opens the share window titled with the name, the status stays empty", async () => {
     const { wrapper } = mountInvite();
     await click(wrapper);
-    expect(wrapper.get("#invite-status").text()).toBe("✓ Invite copied — paste it into a private message");
-    expect(wrapper.get("#invite-status").attributes("hidden")).toBeUndefined();
+    expect(wrapper.get("#invite-status").text()).toBe("");
+    expect(wrapper.get("dialog.invite-share-dialog h2").text()).toBe("Invite for " + SUGGESTED_NAME);
+    expect(wrapper.get("dialog.invite-share-dialog").element.open, "the window is open").toBe(true);
   });
 });

@@ -20,7 +20,7 @@ async function awaitNetwork(api: MeshApi): Promise<void> {
   await expect.poll(async () => (await fetchInvite(api)).status, { timeout: START_TIMEOUT_MS }).toBe(200);
 }
 
-test('15-invite: invite: GET /api/network/invite and the button put it on the clipboard', async ({ app, api, page }) => {
+test('15-invite: invite: GET /api/network/invite, the share window shows it and "Copy" puts it on the clipboard', async ({ app, api, page }) => {
   const net = new DiagnosticsSection(page);
   await awaitNetwork(api);
   const first = await fetchInvite(api);
@@ -56,18 +56,25 @@ test('15-invite: invite: GET /api/network/invite and the button put it on the cl
   const dialog = page.locator('dialog[open]');
   await expect(dialog.locator('[name="invite-name"]')).toHaveValue(/^[a-z]+-[a-z]+$/);
   await dialog.locator('button[type="submit"]').click();
+  await expect(net.inviteValue).toBeVisible({ timeout: 6000 });
+  const shown = (await net.inviteValue.textContent()) ?? '';
+
+  await test.step('the share window opens on the text choice, nothing is on the clipboard yet', async () => {
+    expect.soft(await net.clipboard()).toBeNull();
+  });
+
+  await page.locator('dialog[open] #invite-share-copy').click();
   await expect.poll(() => net.clipboard(), { timeout: 6000 }).not.toBeNull();
   const clip = await net.clipboard();
   const seen = await page.evaluate(() => (window as unknown as { __inv: string[] }).__inv);
 
-  await test.step('a network exists: confirming the invite puts it on the clipboard', async () => {
+  await test.step('the "Copy" button puts the invite on the clipboard', async () => {
     expect.soft(clip?.startsWith(INVITE_PREFIX)).toBe(true);
     expect.soft(clip !== null && seen.includes(clip), 'the clipboard matches the reply the page received').toBe(true);
   });
 
-  await test.step('a network exists: the invite line under the counters shows the same text', async () => {
-    await expect.soft(net.inviteValue).toBeVisible();
-    await expect.soft(net.inviteValue).toHaveText(clip ?? '');
+  await test.step('the window shows the same text', async () => {
+    expect.soft(shown).toBe(clip);
   });
 
   void app;
@@ -76,7 +83,7 @@ test('15-invite: invite: GET /api/network/invite and the button put it on the cl
 test('15-invite-qr: the invite comes with its QR picture', async ({ app, api, page }) => {
   const net = new DiagnosticsSection(page);
   // no anchor: the picture is told apart from the other images by its id; the alt text is not the contract here
-  const qr = page.locator('#invite-qr');
+  const qr = page.locator('dialog[open] #invite-qr');
   await awaitNetwork(api);
 
   await test.step('given: before the invite is issued there is no picture', async () => {
@@ -89,6 +96,8 @@ test('15-invite-qr: the invite comes with its QR picture', async ({ app, api, pa
   await expect(dialog.locator('[name="invite-name"]')).toHaveValue(/^[a-z]+-[a-z]+$/);
   await dialog.locator('button[type="submit"]').click();
 
+  await page.locator('dialog[open] #invite-share-qr-btn').click();
+
   await test.step('the picture appears, it is an inline SVG that the browser decoded', async () => {
     await expect(qr).toBeVisible({ timeout: START_TIMEOUT_MS });
     await expect(qr).toHaveAttribute('src', /^data:image\/svg\+xml/);
@@ -96,7 +105,7 @@ test('15-invite-qr: the invite comes with its QR picture', async ({ app, api, pa
   });
 
   await test.step('the "too long for a QR code" note is not shown', async () => {
-    await expect(page.locator('#invite-qr-too-long')).toHaveCount(0);
+    await expect(page.locator('dialog[open] #invite-qr-too-long')).toHaveCount(0);
   });
 
   void app;

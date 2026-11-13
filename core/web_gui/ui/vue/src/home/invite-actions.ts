@@ -7,16 +7,13 @@ import type { Store } from "../core/store.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
 import { ApiError } from "../core/api.ts";
-import { writeClipboard } from "../common/clipboard.ts";
 import { forDevice } from "../common/device.ts";
 import {
-  HOME_INVITE_BAD_NAME, HOME_INVITE_COPIED, HOME_INVITE_FAILED_PLAIN, HOME_INVITE_MANUAL, HOME_INVITE_NOT_ADMIN, HOME_INVITE_NOT_IN_NETWORK,
+  HOME_INVITE_BAD_NAME, HOME_INVITE_FAILED_PLAIN, HOME_INVITE_NOT_ADMIN, HOME_INVITE_NOT_IN_NETWORK,
   HOME_INVITE_STALE, HOME_INVITE_UNAVAILABLE, HOME_INVITE_UNREACHABLE, HOME_REACH_ISSUER_AND_ONE, HOME_REACH_ISSUER_ONLY, homeInviteFailed,
 } from "./home-flow-texts.ts";
 
 const UNAVAILABLE = HOME_INVITE_UNAVAILABLE;
-const COPIED = HOME_INVITE_COPIED;
-const MANUAL = HOME_INVITE_MANUAL;
 const STALE = HOME_INVITE_STALE;
 
 export interface InviteState {
@@ -27,7 +24,7 @@ export interface InviteState {
   status: string;
   warning: string;
 }
-export type InviteResult = "stale" | "copied" | "manual" | "failed" | "skipped";
+export type InviteResult = "stale" | "ready" | "failed" | "skipped";
 type InviteDeps = Pick<HomeDeps, "api" | "clipboard">;
 
 export function createInviteState(): InviteState {
@@ -47,7 +44,7 @@ export function reachWarning(reach: unknown): string {
 }
 
 // The response is applied only if the network in the current snapshot is the same as at request time.
-async function showInvite(inv: InviteState, store: Store, slot: string, netId: string, res: InviteResponse, deps: InviteDeps): Promise<InviteResult> {
+function showInvite(inv: InviteState, store: Store, slot: string, netId: string, res: InviteResponse): InviteResult {
   if (currentNetId(store, slot) !== netId) {
     inv.status = STALE;
     return "stale";
@@ -57,9 +54,8 @@ async function showInvite(inv: InviteState, store: Store, slot: string, netId: s
   inv.qr = typeof res.qr === "string" ? res.qr : "";
   inv.warning = reachWarning(res.reach);
   inv.netId = netId;
-  const copied = await writeClipboard(deps, res.invite);
-  inv.status = inv.netId === netId ? (copied ? COPIED : MANUAL) : inv.status;
-  return copied ? "copied" : "manual";
+  inv.status = "";
+  return "ready";
 }
 
 // Data URI for an <img> of the QR SVG; "" when there is no SVG.
@@ -91,7 +87,7 @@ export function inviteFailureText(err: unknown): string {
 
 async function fetchInvite(inv: InviteState, store: Store, slot: string, netId: string, deps: InviteDeps, forWhom: string): Promise<InviteResult> {
   const reply = await deps.api<InviteResponse>("GET", invitePath(forWhom, slot)).then((res) => ({ res, err: null }), (err: unknown) => ({ res: null, err }));
-  if (reply.res && reply.res.invite) return showInvite(inv, store, slot, netId, reply.res, deps);
+  if (reply.res && reply.res.invite) return showInvite(inv, store, slot, netId, reply.res);
   inv.status = reply.err === null ? UNAVAILABLE : inviteFailureText(reply.err);
   return "failed";
 }

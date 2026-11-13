@@ -52,10 +52,10 @@ describe("requestInvite: reach warning", () => {
   describe("node returned reach", () => {
     it("issuer_only — warning with text, string and status as before", async () => {
       const w = setup({ response: { invite: SECRET, holders: 0, reach: "issuer_only" } });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "copied");
+      assert.equal(await requestInvite(w.inv, w.store, w.deps), "ready");
       assert.equal(w.inv.warning, WARN_ISSUER_ONLY);
       assert.equal(w.inv.text, SECRET);
-      assert.equal(w.inv.status, "✓ Invite copied — paste it into a private message");
+      assert.equal(w.inv.status, "");
     });
 
     it("issuer_and_one — warning with text", async () => {
@@ -66,7 +66,7 @@ describe("requestInvite: reach warning", () => {
 
     it("spread — warning is empty", async () => {
       const w = setup({ response: { invite: SECRET, holders: 2, reach: "spread" } });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "copied");
+      assert.equal(await requestInvite(w.inv, w.store, w.deps), "ready");
       assert.equal(w.inv.warning, "");
     });
   });
@@ -82,7 +82,7 @@ describe("requestInvite: reach warning", () => {
     for (const [name, response] of noWarning) {
       it(name + " — warning is empty, the invite is shown", async () => {
         const w = setup({ response });
-        assert.equal(await requestInvite(w.inv, w.store, w.deps), "copied");
+        assert.equal(await requestInvite(w.inv, w.store, w.deps), "ready");
         assert.equal(w.inv.warning, "");
         assert.equal(w.inv.text, SECRET);
       });
@@ -153,31 +153,6 @@ describe("requestInvite: reach warning", () => {
       const w = setup({ fail: new ApiError(409, "busy", "busy") });
       await requestInvite(w.inv, w.store, w.deps);
       assert.equal(w.inv.warning, "");
-    });
-  });
-
-  describe("clipboard unavailable", () => {
-    it("no clipboard — \"manual\", the warning is still shown", async () => {
-      const w = setup({ clipboard: null, response: { invite: SECRET, reach: "issuer_only" } });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "manual");
-      assert.equal(w.inv.warning, WARN_ISSUER_ONLY);
-      assert.equal(w.inv.text, SECRET);
-    });
-
-    it("writeText rejected — \"manual\", the warning is shown", async () => {
-      const denied = { writeText: async () => { throw new Error("denied"); } };
-      const w = setup({ clipboard: denied, response: { invite: SECRET, reach: "issuer_and_one" } });
-      assert.equal(await requestInvite(w.inv, w.store, w.deps), "manual");
-      assert.equal(w.inv.warning, WARN_ISSUER_AND_ONE);
-    });
-
-    it("clipboard write still in progress — the warning is already shown with the string", async () => {
-      const slow = { writeText: () => new Promise(() => {}) };
-      const w = setup({ clipboard: slow, response: { invite: SECRET, reach: "issuer_only" } });
-      void requestInvite(w.inv, w.store, w.deps);
-      await tick();
-      assert.equal(w.inv.text, SECRET);
-      assert.equal(w.inv.warning, WARN_ISSUER_ONLY);
     });
   });
 

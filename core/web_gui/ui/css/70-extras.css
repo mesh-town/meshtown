@@ -61,3 +61,7 @@
   .invite-row .peer-who{flex-basis:100%;}
   .invite-row .peer-meta{padding-left:0;}
 }
+.invite-share-steps{margin:6px 0 10px;padding-left:20px;font-size:13.5px;}
+.invite-share-modes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.invite-share-modes .btn{display:inline-flex;align-items:center;gap:6px;}
+.invite-share-dialog .invite-qr{margin:0 auto 10px;}
