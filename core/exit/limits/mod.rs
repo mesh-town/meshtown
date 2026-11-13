@@ -15,7 +15,10 @@ mod share;
 mod window;
 
 pub(crate) use gate::Busy;
+// Read by the state snapshot in a later step.
 pub use gate::ExitLimits;
+#[allow(unused_imports)]
+pub(crate) use gate::LoadView;
 #[cfg(test)]
 pub(crate) use gate::StreamSlot;
 pub(crate) use line_rate::{KeyedLineRate, LineRate};
