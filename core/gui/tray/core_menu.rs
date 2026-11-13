@@ -15,6 +15,7 @@ impl Core {
             MenuTarget::Unknown => {}
             MenuTarget::Open
             | MenuTarget::Admit
+            | MenuTarget::Overload
             | MenuTarget::Add
             | MenuTarget::Notice(_)
             | MenuTarget::Members(_) => self.open_page(&target),

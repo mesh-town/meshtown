@@ -132,6 +132,7 @@ fn nest(menu: &mut ExitMenu, vis: &[SlotView], main: &SlotView) {
     menu.items = Vec::new();
     menu.nets = nets_from_slots(vis);
     menu.groups = groups_from_slots(vis);
+    menu.own_overloaded = own_overload(vis);
     menu.members.admitting = vis.iter().map(|s| u64::from(s.members_admitting)).sum();
     menu.route = via_in_net(menu.route.clone(), main);
 }
@@ -143,6 +144,7 @@ fn via_in_net(route: RouteLine, main: &SlotView) -> RouteLine {
         (RouteLine::ViaRelay(name), Some(label)) => {
             RouteLine::ViaRelay(format!("{name} ({label})"))
         }
+        (RouteLine::ViaBusy(name), Some(label)) => RouteLine::ViaBusy(format!("{name} ({label})")),
         (route, _) => route,
     }
 }

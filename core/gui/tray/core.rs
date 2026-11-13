@@ -103,6 +103,8 @@ pub struct Core {
     members: crate::gui::tray::app::snapshot::TrayMembers,
     /// This node relays between other members: the line under the status line.
     relaying: bool,
+    /// This computer's own exit turns members away in a shown network.
+    own_overloaded: bool,
     spin: Spin,
     /// The network the flat menu works with; `None` is the main one.
     flat_slot: Option<String>,
@@ -132,6 +134,7 @@ impl Core {
 
         let relaying = super::relaying_item::RelayingUi::new(menu.clone());
         let admit = super::admit_item::AdmitUi::new(menu.clone());
+        let overload = super::overload_item::OverloadUi::new(menu.clone());
         let nets = super::nets_ui::NetsUi::new(menu.clone());
         let extras = super::extras_ui::ExtrasUi::new(menu.clone());
         let icon = super::menu_build::view_icon(&icons, self.icon_key())?;
@@ -158,6 +161,7 @@ impl Core {
             actions,
             relaying,
             admit,
+            overload,
             nets,
             extras,
         });
@@ -255,6 +259,7 @@ impl Core {
         self.serves_exit = menu.serves_exit;
         self.members = menu.members;
         self.relaying = menu.relaying;
+        self.own_overloaded = menu.own_overloaded;
         self.flat_slot = menu.slot.clone();
         self.facts = menu_facts(&menu);
         self.offline_nets = menu
@@ -313,6 +318,7 @@ pub(crate) fn channel(
         serves_exit: false,
         members: Default::default(),
         relaying: false,
+        own_overloaded: false,
         spin: Spin::new(),
         flat_slot: None,
         facts: MenuFacts::default(),

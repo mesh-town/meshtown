@@ -130,6 +130,19 @@ pub(crate) fn route_via_text(name: &str, relayed: bool) -> String {
 pub(crate) fn route_exit_offline_text(mark: &str, name: &str) -> String {
     format!("{mark} {name} is offline — sites won't open until it's back")
 }
+/// The selected exit is overloaded (we may reach it through another member too).
+pub(crate) fn route_exit_busy_text(mark: &str, name: &str) -> String {
+    format!("{mark} {name} is overloaded — some sites may not open")
+}
+/// The sign before an overloaded exit in the status line and the "Exit via…" list.
+pub(crate) const BUSY_EXIT_MARK: &str = "🟠";
+/// The tail of a member row or an unselected exit item while that member's exit is overloaded.
+pub(crate) const OVERLOADED_TAIL: &str = " · overloaded";
+/// The menu item shown while this computer's own exit turns members away; a click opens the members section.
+pub(crate) const OWN_OVERLOAD_ITEM_TEXT: &str =
+    "This computer is turning members away — open Members…";
+/// The tail of the icon hint while this computer's own exit turns members away.
+pub(crate) const OWN_OVERLOAD_TOOLTIP_TAIL: &str = " · turning members away";
 /// Several exits are selected and none is online.
 pub(crate) const ROUTE_ALL_OFFLINE_TEXT: &str = "Chosen members are offline — sites won't open";
 /// Grey icon: not joined to a network yet.

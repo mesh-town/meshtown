@@ -7,6 +7,7 @@ use super::nets_texts::{
     more_peers_text, net_invite_admins_only_text, open_members_text, peer_offline_row_text,
     peer_online_text, serve_text, MAX_PEER_ROWS, NET_INVITE_TEXT,
 };
+use super::tray_texts::OVERLOADED_TAIL;
 
 /// What a row is in the menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -161,9 +162,10 @@ fn peer_line(id: &str, peer: &PeerRow) -> RowSpec {
         true => peer_online_text(&peer.name, country),
         false => peer_offline_row_text(&peer.name, country),
     };
+    let tail = if peer.overloaded { OVERLOADED_TAIL } else { "" };
     RowSpec {
         secondary: !peer.online,
-        ..RowSpec::new(id.to_string(), text, RowKind::Item)
+        ..RowSpec::new(id.to_string(), format!("{text}{tail}"), RowKind::Item)
     }
 }
 

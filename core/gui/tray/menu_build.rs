@@ -179,6 +179,7 @@ pub(super) struct TrayUi {
     pub(super) actions: ActionsUi,
     pub(super) relaying: super::relaying_item::RelayingUi,
     pub(super) admit: super::admit_item::AdmitUi,
+    pub(super) overload: super::overload_item::OverloadUi,
     pub(super) nets: super::nets_ui::NetsUi,
     pub(super) extras: super::extras_ui::ExtrasUi,
 }

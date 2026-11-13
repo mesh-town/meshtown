@@ -330,3 +330,31 @@ mod unnamed_network {
         assert_eq!(groups_from_slots(&vis)[0].title, "Network 9c1e");
     }
 }
+
+#[test]
+fn net_row_tail() {
+    use crate::gui::tray::app::nets_rows::net_rows;
+
+    // given: the second member of the first network says it is overloaded
+    let mut json = overview_json(&[friends()]);
+    json["slots"][0]["state"]["peers"][1]["overloaded"] = serde_json::json!("streams");
+    let vis = visible_slots(parse_overview(&json).expect("a summary"));
+
+    // when
+    let net = nets_from_slots(&vis).remove(0);
+    let texts: Vec<String> = net_rows(&net, None).into_iter().map(|r| r.text).collect();
+
+    // then
+    let tails: Vec<bool> = net.peers.iter().map(|p| p.overloaded).collect();
+    assert_eq!(tails, [false, true, false]);
+    assert!(texts
+        .iter()
+        .any(|t| t.starts_with("peer-two") && t.ends_with(" · overloaded")));
+    assert_eq!(
+        texts
+            .iter()
+            .filter(|t| t.ends_with(" · overloaded"))
+            .count(),
+        1
+    );
+}

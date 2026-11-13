@@ -10,6 +10,8 @@ use crate::gui::tray::app::members_note::with_anchor;
 pub enum MenuTarget {
     Open,
     Admit,
+    /// The "this computer is turning members away" item: opens the members section.
+    Overload,
     /// "Add a network…": opens the add form of the page.
     Add,
     /// A deleted-network note, by its number: opens the member list.
@@ -42,6 +44,8 @@ pub struct MenuFacts {
     pub nets: Vec<NetFact>,
     /// The network a click on the "request" item opens the members page of.
     pub admit_slot: Option<String>,
+    /// The first network whose own exit is overloaded: a click on the "turning members away" item opens it.
+    pub overload_slot: Option<String>,
 }
 
 /// An item id → its target. An unknown or empty id is `Unknown`.
@@ -56,6 +60,7 @@ fn plain_target(id: &str) -> MenuTarget {
     match id {
         "open" => MenuTarget::Open,
         "admit" => MenuTarget::Admit,
+        "overload" => MenuTarget::Overload,
         "add" => MenuTarget::Add,
         "node" => MenuTarget::Node,
         "quit" => MenuTarget::Quit,
@@ -108,6 +113,11 @@ pub fn menu_facts(menu: &ExitMenu) -> MenuFacts {
     MenuFacts {
         nets,
         admit_slot: admitting.map(|n| n.slot.clone()),
+        overload_slot: menu
+            .nets
+            .iter()
+            .find(|n| n.own_overloaded)
+            .map(|n| n.slot.clone()),
     }
 }
 
@@ -122,6 +132,7 @@ pub fn link_for(target: &MenuTarget, base: &str, facts: &MenuFacts) -> Option<St
         MenuTarget::Open => Some(base.to_string()),
         MenuTarget::Members(slot) => Some(with_anchor(base, &format!("peers/{slot}"))),
         MenuTarget::Admit => Some(with_anchor(base, &admit_anchor(facts))),
+        MenuTarget::Overload => Some(with_anchor(base, &overload_anchor(facts))),
         MenuTarget::Add => Some(with_anchor(base, "peers/add")),
         MenuTarget::Notice(_) => Some(with_anchor(base, "peers")),
         _ => None,
@@ -130,6 +141,14 @@ pub fn link_for(target: &MenuTarget, base: &str, facts: &MenuFacts) -> Option<St
 
 fn admit_anchor(facts: &MenuFacts) -> String {
     match (&facts.admit_slot, facts.nets.len() >= 2) {
+        (Some(slot), true) => format!("peers/{slot}"),
+        _ => "peers".to_string(),
+    }
+}
+
+/// The members section of the first network with an overload; with a single network, the plain members section.
+fn overload_anchor(facts: &MenuFacts) -> String {
+    match (&facts.overload_slot, facts.nets.len() >= 2) {
         (Some(slot), true) => format!("peers/{slot}"),
         _ => "peers".to_string(),
     }

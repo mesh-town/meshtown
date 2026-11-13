@@ -307,6 +307,7 @@ fn facts(nets: &[(&str, bool, bool)]) -> MenuFacts {
     MenuFacts {
         nets: nets.iter().map(net).collect(),
         admit_slot: None,
+        overload_slot: None,
     }
 }
 

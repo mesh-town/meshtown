@@ -16,10 +16,11 @@ use crate::web_gui::RouteMode;
 use super::exit_menu::OFFLINE_EXIT_MARK;
 use super::snapshot::{TrayNodeStatus, TraySnapshot};
 use super::tray_texts::{
-    page_open_text, port_busy_hint_text, route_direct_text, route_exit_offline_text,
-    route_via_text, status_absent_text, status_starting_text, status_unresponsive_text,
-    DISABLED_HINT, NODE_ITEM_STOPPING_TEXT, PAGE_STARTING_TEXT, PAGE_UNAVAILABLE_TEXT,
-    ROUTE_ALL_OFFLINE_TEXT, START_TEXT, STATUS_STOPPING_TEXT, STOP_TEXT,
+    page_open_text, port_busy_hint_text, route_direct_text, route_exit_busy_text,
+    route_exit_offline_text, route_via_text, status_absent_text, status_starting_text,
+    status_unresponsive_text, BUSY_EXIT_MARK, DISABLED_HINT, NODE_ITEM_STOPPING_TEXT,
+    PAGE_STARTING_TEXT, PAGE_UNAVAILABLE_TEXT, ROUTE_ALL_OFFLINE_TEXT, START_TEXT,
+    STATUS_STOPPING_TEXT, STOP_TEXT,
 };
 use super::view_disk::Disk;
 use super::view_ring::Ring;
@@ -192,6 +193,8 @@ pub enum RouteLine {
     Via(String),
     /// Like `Via`, and our path to the exit goes through another member (`peers[].path == "relay"`).
     ViaRelay(String),
+    /// Like `Via`, and the exit says it is overloaded (the path does not matter).
+    ViaBusy(String),
     /// The selected exit (or exits) is offline right now. `Some(name)` means exactly one is selected;
     /// `None` means several are selected and none is online.
     Unavailable(Option<String>),
@@ -224,6 +227,7 @@ fn route_line_text(route: &RouteLine) -> String {
         RouteLine::Direct => route_direct_text(),
         RouteLine::Via(name) => route_via_text(name, false),
         RouteLine::ViaRelay(name) => route_via_text(name, true),
+        RouteLine::ViaBusy(name) => route_exit_busy_text(BUSY_EXIT_MARK, name),
         RouteLine::Unavailable(Some(name)) => route_exit_offline_text(OFFLINE_EXIT_MARK, name),
         RouteLine::Unavailable(None) => ROUTE_ALL_OFFLINE_TEXT.to_string(),
     }
