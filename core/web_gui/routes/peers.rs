@@ -113,7 +113,7 @@ pub(super) async fn network_invite_handler(SlotParam(slot): SlotParam, uri: Uri)
     };
     match pending.finish_dealt().await {
         Ok(dealt) => {
-            let body = invite_qr::with_qr(dealt.api_body());
+            let body = invite_qr::with_qr(dealt.api_body(), &dealt.qr_text);
             (StatusCode::OK, axum::Json(body)).into_response()
         }
         Err(e) => action_error(e),

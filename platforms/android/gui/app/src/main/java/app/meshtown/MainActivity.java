@@ -167,8 +167,9 @@ public class MainActivity extends Activity {
         if (text == null && intent != null) {
             text = intent.getDataString();
         }
-        if (text != null && text.trim().startsWith("mesh-invite")) {
-            pendingInvite = text.trim();
+        String invite = InviteScan.inviteOf(text);
+        if (invite != null) {
+            pendingInvite = invite;
         }
     }
 
