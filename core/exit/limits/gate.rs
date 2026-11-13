@@ -192,7 +192,6 @@ impl ExitLimits {
         self.0.load.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    #[allow(dead_code)]
     /// Why the exit is overloaded at `now`, or `None` while it is not.
     pub(crate) fn overloaded(&self, now: Instant) -> Option<Reason> {
         self.meter().overloaded(now)
