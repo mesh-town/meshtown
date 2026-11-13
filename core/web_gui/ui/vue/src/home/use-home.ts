@@ -10,6 +10,8 @@ import { isMulti, membersOf, netConfig, netName, stateOf, visibleSlots } from ".
 import type { Store } from "../core/store.ts";
 import { chosenExitIds, getRememberedFor, getRememberedSplit, markExitAutoPicked, wasExitAutoPicked } from "../common/exits.ts";
 import { exitChoiceValue, proxySlotOf } from "../core/exit-via.ts";
+import { netRing } from "./net-ring.ts";
+import type { NetRing } from "./net-ring.ts";
 import { exitGroups, rememberedIn } from "./exit-groups.ts";
 import type { ExitGroup } from "./exit-groups.ts";
 import { routeLine } from "./route-line.ts";
@@ -55,6 +57,8 @@ interface NameView {
 }
 
 /** What `useHome` gives to the Home cards. */
+export type NetTileView = NetRowView & { ring: NetRing };
+
 export interface HomeContext {
   form: HomeForm;
   setupMark: Ref<string | null>;
@@ -74,7 +78,7 @@ export interface HomeContext {
   ring: ComputedRef<RingView | null>;
   order: ComputedRef<CardKey[]>;
   multi: ComputedRef<boolean>;
-  netRows: ComputedRef<NetRowView[]>;
+  netRows: ComputedRef<NetTileView[]>;
   chips: ComputedRef<StatusChip[]>;
   exitGroups: ComputedRef<ExitGroup[]>;
   findView: ComputedRef<FindExitView>;
@@ -256,7 +260,7 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     ring: computed(() => (multi.value || panel.value.busy ? null : ringView(store.state, panel.value.level))),
     order: computed(() => cardOrder(store.state, HOME_ORDER, multi.value)),
     multi,
-    netRows: computed(() => shownBriefs(store).map((b) => netRowView(b, store.slots[b.id], netName(store.nets, b.id)))),
+    netRows: computed(() => shownBriefs(store).map((b) => ({ ...netRowView(b, store.slots[b.id], netName(store.nets, b.id)), ring: netRing(store, b.id) }))),
     chips: computed(() => statusChips(store.nets, visibleSlots(store.nets, store.slots))),
     exitGroups: groups,
     findView: computed(() => findExitView(store.state, form.findDomain)),
