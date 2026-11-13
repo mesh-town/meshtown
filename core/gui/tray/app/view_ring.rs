@@ -39,12 +39,30 @@ pub fn ring_of(snap: &TraySnapshot) -> Ring {
     };
     let via = active_exit_id_full(snap);
     let down = down_exit_ids_full(snap);
-    let clients = snap.exit.clients.as_slice();
+    let facts = RoleFacts {
+        via,
+        via_busy: active_exit_busy(snap),
+        down: &down,
+        clients: snap.exit.clients.as_slice(),
+    };
     let ring = peers
         .iter()
-        .filter_map(|peer| peer_role(peer, via, &down, clients))
+        .filter_map(|peer| peer_role(peer, &facts))
         .fold(Ring::EMPTY, Ring::add);
-    with_missing_down(with_missing_exit(ring, via, peers), &down, peers)
+    let ring = with_missing_exit(ring, &facts, peers);
+    with_missing_down(ring, &down, peers).with_badge(snap.own_exit_overloaded())
+}
+
+/// What the role of a member depends on besides the member itself.
+struct RoleFacts<'a> {
+    /// The `id_full` of the active exit.
+    via: Option<&'a str>,
+    /// The active exit is overloaded (`route.exits[].busy`).
+    via_busy: bool,
+    /// The unavailable selected exits.
+    down: &'a [&'a str],
+    /// Members that go out through us.
+    clients: &'a [String],
 }
 
 /// Unavailable selected exits that are not among `peers` (the list drifted from the route):
@@ -59,14 +77,24 @@ fn with_missing_down(ring: Ring, down: &[&str], peers: &[TrayPeer]) -> Ring {
 /// The active exit is known from `route`, but it is not among `peers` (the list drifted from the route):
 /// still one blue sector, so that the ring doesn't look like "direct". We search all peers,
 /// including the node itself; one found (even if offline) counts by its own role, with no duplicate.
-fn with_missing_exit(ring: Ring, via: Option<&str>, peers: &[TrayPeer]) -> Ring {
-    let Some(id) = via else {
+fn with_missing_exit(ring: Ring, facts: &RoleFacts, peers: &[TrayPeer]) -> Ring {
+    let Some(id) = facts.via else {
         return ring;
     };
     if peers.iter().any(|p| p.id_full.as_deref() == Some(id)) {
         return ring;
     }
-    ring.add(RingRole::ActiveExit)
+    ring.add(exit_role(false, facts.via_busy))
+}
+
+/// The active exit says it is overloaded: the same element of `route.exits[]` as `active_exit_id_full` takes.
+fn active_exit_busy(snap: &TraySnapshot) -> bool {
+    if snap.route.state != RouteMode::Exit {
+        return false;
+    }
+    let exits = &snap.route.exits;
+    let marked = exits.iter().find(|e| e.active);
+    marked.or(exits.first()).is_some_and(|e| e.busy)
 }
 
 /// The `id_full` of the exit we go through: only when `route.state == "exit"`; the element of
@@ -95,58 +123,51 @@ fn down_exit_ids_full(snap: &TraySnapshot) -> Vec<&str> {
 
 /// A member's role; `None` means the node itself. A missing `id_full`/`online` does not panic: no `online`
 /// means offline.
-fn peer_role(
-    peer: &TrayPeer,
-    via: Option<&str>,
-    down: &[&str],
-    clients: &[String],
-) -> Option<RingRole> {
+fn peer_role(peer: &TrayPeer, facts: &RoleFacts) -> Option<RingRole> {
     if peer.is_self {
         return None;
     }
-    let id = peer.id_full.as_deref();
     let relayed = peer.path.as_deref() == Some("relay");
     Some(classify_peer_role(
-        id,
+        peer.id_full.as_deref(),
         peer.online,
-        (via, down),
-        clients,
+        facts,
         relayed,
     ))
 }
 
 /// Order of checks: an unavailable selected exit (red beats grey), connection ("offline" is
-/// grey even for an exit and a client), exit (blue beats violet; dashed when `relayed`), exit client, otherwise online.
-/// `exits` is `(active_exit_id, down_exit_ids)`: the active exit and the unavailable selected ones.
+/// grey even for an exit and a client), exit (blue beats violet; orange when overloaded; dashed when `relayed`),
+/// exit client, otherwise online. Another overloaded member stays green: the ring shows roles, not load.
 fn classify_peer_role(
     id: Option<&str>,
     online: bool,
-    exits: (Option<&str>, &[&str]),
-    exit_client_ids: &[String],
+    facts: &RoleFacts,
     relayed: bool,
 ) -> RingRole {
-    let (active_exit_id, down_exit_ids) = exits;
-    if id.is_some_and(|id| down_exit_ids.contains(&id)) {
+    if id.is_some_and(|id| facts.down.contains(&id)) {
         return RingRole::ExitDown;
     }
     if !online {
         return RingRole::Offline;
     }
-    if id.is_some() && id == active_exit_id {
-        return exit_role(relayed);
+    if id.is_some() && id == facts.via {
+        return exit_role(relayed, facts.via_busy);
     }
-    if id.is_some_and(|id| exit_client_ids.iter().any(|c| c == id)) {
+    if id.is_some_and(|id| facts.clients.iter().any(|c| c == id)) {
         return RingRole::ExitClient;
     }
     RingRole::Online
 }
 
-/// The role of the active exit: dashed when our path to it goes through another member.
-fn exit_role(relayed: bool) -> RingRole {
-    if relayed {
-        return RingRole::ExitViaRelay;
+/// The role of the active exit: dashed when our path to it goes through another member, orange when it is overloaded.
+fn exit_role(relayed: bool, busy: bool) -> RingRole {
+    match (relayed, busy) {
+        (false, false) => RingRole::ActiveExit,
+        (true, false) => RingRole::ExitViaRelay,
+        (false, true) => RingRole::ActiveExitBusy,
+        (true, true) => RingRole::ExitViaRelayBusy,
     }
-    RingRole::ActiveExit
 }
 
 /// Sectors are needed when the ring has members, with any icon color; otherwise `None` and the icon
@@ -166,3 +187,7 @@ mod parse_tests;
 #[cfg(test)]
 #[path = "view_ring_missing_tests.rs"]
 mod missing_tests;
+
+#[cfg(test)]
+#[path = "view_ring_busy_tests.rs"]
+mod busy_tests;

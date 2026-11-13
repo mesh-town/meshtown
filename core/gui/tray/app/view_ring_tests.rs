@@ -85,7 +85,13 @@ mod relay_roles {
     const EXIT: &str = "e1";
 
     fn role(id: &str, online: bool, down: &[&str], relayed: bool) -> RingRole {
-        classify_peer_role(Some(id), online, (Some(EXIT), down), &[], relayed)
+        let facts = RoleFacts {
+            via: Some(EXIT),
+            via_busy: false,
+            down,
+            clients: &[],
+        };
+        classify_peer_role(Some(id), online, &facts, relayed)
     }
 
     #[test]
@@ -95,6 +101,10 @@ mod relay_roles {
         let tail = RingRole::ExitViaRelay;
         assert_eq!(role_rgb(tail), role_rgb(RingRole::ActiveExit));
         assert_eq!(RING_ROLES[RingRole::ActiveExit as usize + 1], tail);
+        assert_eq!(
+            RING_ROLES[RingRole::ExitDown as usize + 1],
+            RingRole::ActiveExitBusy
+        );
     }
 
     #[test]
@@ -116,7 +126,17 @@ mod relay_roles {
             path: path.map(String::from),
             ..TrayPeer::default()
         };
-        let role_of = |path| peer_role(&peer(path), Some(EXIT), &[], &[]);
+        let role_of = |path| {
+            peer_role(
+                &peer(path),
+                &RoleFacts {
+                    via: Some(EXIT),
+                    via_busy: false,
+                    down: &[],
+                    clients: &[],
+                },
+            )
+        };
         assert_eq!(role_of(Some("relay")), Some(RingRole::ExitViaRelay));
         assert_eq!(role_of(Some("direct")), Some(RingRole::ActiveExit));
         assert_eq!(role_of(None), Some(RingRole::ActiveExit));
