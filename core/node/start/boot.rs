@@ -38,6 +38,7 @@ pub(super) struct Boot {
     pub(super) net_root: PeerId,
     pub(super) reply_secret: NetworkKey,
     pub(super) network_label: Option<String>,
+    pub(super) kept_invites_path: Option<std::path::PathBuf>,
     pub(super) telemetry: Arc<Telemetry>,
     /// The live count of gossip neighbors: written by the swarm event task, read by the discovery pacing and the main loop.
     pub(super) gossip_neighbor_count: Arc<AtomicUsize>,
@@ -67,6 +68,7 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
         net_root: cfg.net_root,
         reply_secret: cfg.reply_secret.clone(),
         network_label: cfg.network_label.clone(),
+        kept_invites_path: cfg.kept_invites_path.clone(),
         telemetry,
         gossip_neighbor_count: Arc::new(AtomicUsize::new(0)),
     })

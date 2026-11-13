@@ -61,7 +61,9 @@ pub(super) fn make_invite(
         return Err(super::gates::busy_stopping());
     }
     let issued = crate::invite::make(&node.invite_source(), for_whom).map_err(make_error)?;
-    Ok(PendingInvite::pending(issued.commit()))
+    Ok(PendingInvite::pending(
+        super::control_invites_text::commit_and_keep(issued, node.kept_invites_path.clone()),
+    ))
 }
 
 /// The page-facing error of a failed `invite::make`: the admin-only and the left-the-network

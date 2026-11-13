@@ -126,6 +126,7 @@ fn row_of(i: &DemoInvite) -> InviteRow {
         issuer: Some(crate::members::fake_id(if i.mine { "01" } else { "d4" })),
         issuer_name: (!i.mine).then(|| OTHER_ADMIN.to_string()),
         mine: i.mine,
+        kept: false,
     }
 }
 

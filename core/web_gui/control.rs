@@ -6,7 +6,7 @@ use std::pin::Pin;
 
 use serde::Serialize;
 
-use super::{InvitesReply, LogPage, MembersReply, NetRoles, NodeSnapshot};
+use super::{InviteText, InvitesReply, LogPage, MembersReply, NetRoles, NodeSnapshot};
 use crate::invite::Dealt;
 use crate::node::output::NET_NAME;
 use crate::transport::net::NodeSecret;
@@ -124,6 +124,10 @@ pub trait NodeControl: Send + Sync {
     fn open_invites(&self) -> InvitesFuture {
         invites_not_implemented()
     }
+    /// The strings of an open invite this node made and kept; admins only.
+    fn invite_text(&self, _hash: String) -> InviteTextFuture {
+        invites_not_implemented()
+    }
     /// Rewrites the note of an invite this node made (`None` clears it); the reply is the list after it.
     fn relabel_invite(&self, hash: String, for_whom: Option<String>) -> InvitesFuture {
         let _ = (hash, for_whom);
@@ -131,10 +135,14 @@ pub trait NodeControl: Send + Sync {
     }
 }
 
+/// The reply of the call for the strings of one invite.
+pub type InviteTextFuture = Pin<Box<dyn Future<Output = Result<InviteText, MemberError>> + Send>>;
+
 /// The reply of an asynchronous open-invite call.
 pub type InvitesFuture = Pin<Box<dyn Future<Output = Result<InvitesReply, MemberError>> + Send>>;
 
-fn invites_not_implemented() -> InvitesFuture {
+fn invites_not_implemented<T: Send + 'static>(
+) -> Pin<Box<dyn Future<Output = Result<T, MemberError>> + Send>> {
     Box::pin(async {
         Err(MemberError::Action(ActionError::NotFound(
             "action not implemented".to_string(),

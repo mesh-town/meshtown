@@ -102,6 +102,7 @@ fn assemble_running(
         ports_doc: serving.ports_doc,
         doc_changes: serving.doc_changes,
         opener: serving.opener,
+        kept_invites_path: boot.kept_invites_path,
         background_abort_handles: Arc::new(boot.background_abort_handles),
     }
 }

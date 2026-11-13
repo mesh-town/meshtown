@@ -22,4 +22,19 @@ pub struct InviteRow {
     pub issuer_name: Option<String>,
     /// This node made the invite, so it may edit the note.
     pub mine: bool,
+    /// The strings of this invite are kept on this node, so it can be copied or shown as a QR code again.
+    pub kept: bool,
+}
+
+/// The strings of one open invite: the full one and the shorter one for the QR code. A secret: not in `Debug`.
+#[derive(Clone, PartialEq, Eq)]
+pub struct InviteText {
+    pub text: String,
+    pub qr_text: String,
+}
+
+impl std::fmt::Debug for InviteText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InviteText").finish_non_exhaustive()
+    }
 }

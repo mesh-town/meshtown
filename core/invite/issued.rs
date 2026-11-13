@@ -25,6 +25,16 @@ pub struct Issued {
 }
 
 impl Issued {
+    /// The hash of the invite secret (64 hex characters): what names the invite in the network document.
+    pub fn hash(&self) -> &str {
+        &self.hash
+    }
+
+    /// When the invite was made, in Unix seconds.
+    pub fn made_unix(&self) -> u64 {
+        self.head.made_unix
+    }
+
     /// Writes the issue record, collects the holders (members that saved their copy) and returns
     /// the string with them first; if writing the issue record fails — there is no string.
     pub async fn commit(self) -> Result<Dealt> {

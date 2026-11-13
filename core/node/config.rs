@@ -52,6 +52,9 @@ pub struct NodeConfig {
     /// File of the last known member names; `None` — neither read nor written (tests,
     /// `--no-config`).
     pub peer_names_path: Option<PathBuf>,
+    /// File of the invite strings this node made (`kept-invites.json`); `None` — not kept (tests,
+    /// `--no-config`).
+    pub kept_invites_path: Option<PathBuf>,
     /// File of the saved DHT table; `None` — not read and not written (tests, `--no-config`).
     pub dht_table_path: Option<PathBuf>,
     /// The `mem` network in process memory: tests only. `Some` allows the `mem` transport in `net.transports`
@@ -130,6 +133,7 @@ fn assemble(
         peers_cache_path: None,
         docs_store_dir: None,
         peer_names_path: None,
+        kept_invites_path: None,
         dht_table_path: None,
         test_net: None,
         open_list: false,

@@ -18,7 +18,9 @@ const open = async (props = {}) => {
   await flushPromises();
   return wrapper;
 };
-beforeEach(() => api.mockResolvedValue(invitesReply([MINE, OTHER])));
+beforeEach(() => {
+  api.mockResolvedValue(invitesReply([MINE, OTHER]));
+});
 afterEach(() => wrapper.unmount());
 
 describe("PendingInvites", () => {
@@ -89,5 +91,60 @@ describe("PendingInvites", () => {
   it("a second network uses /api/net/<slot>/network/invites", async () => {
     await open({ slot: "net-bbbb" });
     expect(api).toHaveBeenCalledWith("GET", "/api/net/net-bbbb/network/invites");
+  });
+
+  describe("kept invites", () => {
+    const KEPT = openInvite({ kept: true });
+    const FULL = "mesh-invite2-the-full-string";
+    const QR_SVG = "<svg></svg>";
+    const links = (hash) => wrapper.findAll(`[data-invite="${hash}"] .invite-share-link`);
+    const answerText = () => api.mockImplementation(async (...a) => (a.length || console.log(new Error().stack), a[1].endsWith("/text") ? { invite: FULL, qr: QR_SVG } : invitesReply([KEPT, OTHER])));
+    afterEach(() => Reflect.deleteProperty(navigator, "clipboard"));
+
+    it("shows the two links, with an icon and text, only on rows that are kept", async () => {
+      api.mockResolvedValue(invitesReply([KEPT, openInvite({ hash: "c".repeat(64), kept: false }), { ...OTHER, kept: false }]));
+      await open();
+      const own = links(KEPT.hash);
+      expect(own.map((b) => b.text())).toEqual(["Copy invite", "Show QR code"]);
+      expect(own.every((b) => b.find("svg").exists())).toBe(true);
+      expect(links("c".repeat(64))).toHaveLength(0);
+      expect(links(OTHER.hash)).toHaveLength(0);
+    });
+
+    it("\"Copy invite\" puts the full string on the clipboard and says Copied", async () => {
+      const written = [];
+      Object.defineProperty(navigator, "clipboard", { value: { writeText: async (t) => void written.push(t) }, configurable: true });
+      api.mockResolvedValue(invitesReply([KEPT]));
+      await open();
+      answerText();
+      await links(KEPT.hash)[0].trigger("click");
+      await flushPromises();
+      expect(api).toHaveBeenCalledWith("POST", "/api/network/invites/text", { hash: KEPT.hash });
+      expect(written).toEqual([FULL]);
+      expect(wrapper.get(`[data-invite="${KEPT.hash}"] [role="status"]`).text()).toBe("Copied");
+    });
+
+    it("\"Show QR code\" opens the window on the QR picture; closing it forgets the string", async () => {
+      api.mockResolvedValue(invitesReply([KEPT]));
+      await open();
+      answerText();
+      await links(KEPT.hash)[1].trigger("click");
+      await flushPromises();
+      expect(wrapper.get("dialog").element.open).toBe(true);
+      expect(wrapper.get("#invite-qr").attributes("src")).toContain("data:image/svg+xml");
+      await wrapper.get("#invite-share-close").trigger("click");
+      await flushPromises();
+      expect(wrapper.html()).not.toContain(FULL);
+    });
+
+    it("a refused text shows the reason under the row and opens nothing", async () => {
+      api.mockResolvedValue(invitesReply([KEPT]));
+      await open();
+      api.mockRejectedValueOnce(new ApiError(404, "not_found", "x", { error: "not_found", message: "x" }));
+      await links(KEPT.hash)[1].trigger("click");
+      await flushPromises();
+      expect(wrapper.get(`[data-invite="${KEPT.hash}"] [role="alert"]`).text()).toContain("no longer be shown");
+      expect(wrapper.get("dialog").element.open).toBe(false);
+    });
   });
 });

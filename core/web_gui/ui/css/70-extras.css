@@ -57,6 +57,9 @@
 .invite-row .peer-who{overflow-wrap:anywhere;}
 .invite-edit{display:flex;flex-wrap:wrap;gap:6px;}
 .invite-edit .input{flex:1;min-width:0;max-width:100%;box-sizing:border-box;}
+.invite-share-links{display:flex;flex-wrap:wrap;align-items:center;gap:2px 14px;margin-top:4px;}
+.invite-share-link{display:inline-flex;align-items:center;gap:5px;padding:2px 0;border:0;background:none;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;}
+.invite-share-link:hover{text-decoration:underline;}
 @media (max-width:720px){
   .invite-row .peer-who{flex-basis:100%;}
   .invite-row .peer-meta{padding-left:0;}

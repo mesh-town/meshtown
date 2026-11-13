@@ -14,8 +14,8 @@ use crate::web_gui::auth::state::AuthState;
 use crate::web_gui::config_api::ConfigState;
 use crate::web_gui::http::ConnInfo;
 use crate::web_gui::{
-    single_slot_host, ActionError, App, InviteRow, InvitesFuture, InvitesReply, LogPage,
-    MemberError, NodeControl, NodeSnapshot, WebShared,
+    single_slot_host, ActionError, App, InviteRow, InviteText, InviteTextFuture, InvitesFuture,
+    InvitesReply, LogPage, MemberError, NodeControl, NodeSnapshot, WebShared,
 };
 
 const PORT: u16 = 18767;
@@ -25,6 +25,8 @@ const HASH: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccdd
 /// What the fake node answers.
 enum Answer {
     List(InvitesReply),
+    /// The strings of the invite under `HASH`; every other hash is unknown.
+    Text(&'static str, &'static str),
     Refused(&'static str),
     Action(ActionError),
 }
@@ -41,6 +43,7 @@ impl FakeNode {
     fn reply(&self) -> InvitesFuture {
         let result = match &self.answer {
             Answer::List(reply) => Ok(reply.clone()),
+            Answer::Text(..) => Ok(sample()),
             Answer::Refused(code) => Err(MemberError::Refused {
                 code,
                 message: "refused".to_string(),
@@ -80,6 +83,19 @@ impl NodeControl for FakeNode {
     fn switch_network(&self, _key: &str) {}
     fn stop(&self) {}
 
+    fn invite_text(&self, hash: String) -> InviteTextFuture {
+        let result = match &self.answer {
+            Answer::Text(text, qr) if hash == HASH => Ok(InviteText {
+                text: text.to_string(),
+                qr_text: qr.to_string(),
+            }),
+            _ => Err(MemberError::Action(ActionError::NotFound(
+                "this invite can no longer be shown".to_string(),
+            ))),
+        };
+        Box::pin(async move { result })
+    }
+
     fn open_invites(&self) -> InvitesFuture {
         self.reply()
     }
@@ -105,6 +121,7 @@ fn sample() -> InvitesReply {
             issuer: Some("ab".repeat(32)),
             issuer_name: Some("laptop".to_string()),
             mine: true,
+            kept: true,
         }],
     }
 }
@@ -323,4 +340,44 @@ async fn slot_route_reaches_the_slot() {
     assert_eq!(list.0, StatusCode::OK);
     assert_eq!(edit.0, StatusCode::OK);
     assert_eq!(fx.seen.lock().unwrap().len(), 1);
+}
+
+async fn text(fx: &Fixture, body: Value) -> (StatusCode, Value) {
+    send(fx, "POST", "/api/network/invites/text", &body.to_string()).await
+}
+
+#[tokio::test]
+async fn text_route_returns_invite_and_qr() {
+    // given
+    let fx = setup(Answer::Text("full-invite-string", "short-invite"));
+    // when
+    let (status, body) = text(&fx, json!({"hash": HASH.to_uppercase()})).await;
+    // then
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["invite"], "full-invite-string");
+    assert!(body["qr"].as_str().unwrap().contains("<svg"), "{body}");
+}
+
+#[tokio::test]
+async fn text_route_404_for_unknown_or_foreign() {
+    // given: the node knows no string under the asked hash
+    let fx = setup(Answer::Text("full-invite-string", "short-invite"));
+    // when
+    let other = text(&fx, json!({"hash": "ab".repeat(32)})).await;
+    // then: one answer, without the string
+    assert_eq!(other.0, StatusCode::NOT_FOUND);
+    assert_eq!(other.1["error"], "not_found");
+    assert!(!other.1.to_string().contains("full-invite-string"));
+}
+
+#[tokio::test]
+async fn text_route_rejects_bad_hash() {
+    // given
+    let fx = setup(Answer::Text("full-invite-string", "short-invite"));
+    // when / then
+    for body in [json!({}), json!({"hash": "abc"}), json!({"hash": 5})] {
+        assert_eq!(line(text(&fx, body).await), "400 bad_request");
+    }
+    let get = send(&fx, "GET", "/api/network/invites/text", "").await;
+    assert_eq!(get.0, StatusCode::METHOD_NOT_ALLOWED);
 }

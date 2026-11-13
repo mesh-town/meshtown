@@ -4,6 +4,8 @@ export const INVITES_TITLE = "Pending invites";
 export const INVITES_EMPTY = "No open invites";
 export const INVITES_NO_NAME = "no name";
 export const INVITES_SAVE = "Save";
+export const INVITES_COPY = "Copy invite";
+export const INVITES_SHOW_QR = "Show QR code";
 export const labelAria = "Who this invite is for";
 
 const issueTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
