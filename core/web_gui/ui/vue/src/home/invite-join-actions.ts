@@ -19,7 +19,7 @@ export interface InviteContext {
 }
 
 /** An invite, as opposed to a word key. */
-export const isInvite = (text: string): boolean => text.trim().startsWith("mesh-invite");
+export const isInvite = (text: string): boolean => text.trim().toLowerCase().startsWith("mesh-invite");
 
 const OUTCOME: Record<JoinResult | AddNetResult, InviteOutcome> = {
   joined: "joined", waiting: "waiting", here: "here", duplicate: "here", limit: "limit", failed: "failed",

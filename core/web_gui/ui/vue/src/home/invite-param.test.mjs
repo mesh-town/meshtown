@@ -8,6 +8,9 @@ describe("inviteFromSearch", () => {
   it("takes an invite", () => {
     assert.equal(inviteFromSearch("?token=a&invite=mesh-invite2-abc%20def"), "mesh-invite2-abc def");
   });
+  it("takes an upper-case invite as lower case", () => {
+    assert.equal(inviteFromSearch("?invite=MESH-INVITE2-ABC"), "mesh-invite2-abc");
+  });
   it("ignores other values and a missing parameter", () => {
     assert.equal(inviteFromSearch("?invite=hello"), "");
     assert.equal(inviteFromSearch("?token=a"), "");

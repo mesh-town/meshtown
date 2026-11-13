@@ -5,7 +5,8 @@
 export function inviteFromSearch(search: string): string {
   const value = new URLSearchParams(search).get("invite");
   const text = value === null ? "" : value.trim();
-  return text.startsWith("mesh-invite") ? text : "";
+  const lower = text.toLowerCase();
+  return lower.startsWith("mesh-invite") ? lower : "";
 }
 
 // The same address without the `invite` parameter.

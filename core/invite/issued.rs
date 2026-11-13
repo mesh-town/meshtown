@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use super::{build_keyed, hold_wire, known, spread, store, Dealt, InviteHead};
+use super::{build_keyed, hold_wire, known, spread, store, Dealt, InviteHead, QR_INVITE_PEERS};
 use crate::members::network_key::NetworkKey;
 use crate::transport::addr_order::PrimaryIps;
 use crate::transport::net::{NetStack, PeerAddr, PeerId};
@@ -34,8 +34,12 @@ impl Issued {
             .await
             .context("writing the invite into the network document failed")?;
         let (list, holders) = self.invite_addrs().await;
-        let text = build_keyed(&self.head, &list[0], &list[1..], &self.primary)?;
-        Ok(Dealt { text, holders })
+        let (text, qr_text) = invite_texts(&self.head, &list, &self.primary)?;
+        Ok(Dealt {
+            text,
+            qr_text,
+            holders,
+        })
     }
 
     /// Asks the members to keep the invite and returns the addresses to put into the string (holders first)
@@ -53,3 +57,20 @@ impl Issued {
         (list, holders)
     }
 }
+
+/// The full string and the shorter one for the QR code: both from the same list, the QR one with its first
+/// `QR_INVITE_PEERS` entries.
+fn invite_texts(
+    head: &InviteHead,
+    list: &[PeerAddr],
+    primary: &PrimaryIps,
+) -> Result<(String, String)> {
+    let text = build_keyed(head, &list[0], &list[1..], primary)?;
+    let short = &list[..list.len().min(QR_INVITE_PEERS)];
+    let qr_text = build_keyed(head, &short[0], &short[1..], primary)?;
+    Ok((text, qr_text))
+}
+
+#[cfg(test)]
+#[path = "issued_tests.rs"]
+mod tests;

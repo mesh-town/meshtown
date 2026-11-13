@@ -12,6 +12,8 @@ use crate::transport::net::PeerId;
 #[derive(Clone)]
 pub struct Dealt {
     pub text: String,
+    /// The same invite with fewer members, for the QR code.
+    pub qr_text: String,
     pub holders: Vec<PeerId>,
 }
 
@@ -39,6 +41,7 @@ impl Dealt {
     /// An invite without holders (stubs and the "nobody online" case).
     pub fn without_holders(text: String) -> Dealt {
         Dealt {
+            qr_text: text.clone(),
             text,
             holders: Vec::new(),
         }

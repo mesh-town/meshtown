@@ -9,8 +9,8 @@ use super::*;
 
 /// Size of the quiet zone, in modules, on every side of the code.
 const QUIET_ZONE: usize = 4;
-/// The longest text that fits version 25 at the lowest error correction level in byte mode.
-const LIMIT: usize = 1273;
+/// The longest upper-case invite that fits version 25 at the lowest error correction level in alphanumeric mode.
+const LIMIT: usize = 1853;
 
 #[test]
 fn short_invite_gets_the_smallest_code() {
@@ -20,7 +20,8 @@ fn short_invite_gets_the_smallest_code() {
     let code = invite_qr_code(&text).expect("a short invite fits");
     let svg = invite_qr_svg(&text).expect("a short invite has a picture");
     // then: a small version, the lowest correction level, the picture is the modules plus the quiet zone
-    let smallest = QrCode::with_error_correction_level(&text, QR_EC_LEVEL).unwrap();
+    let smallest =
+        QrCode::with_error_correction_level(text.to_ascii_uppercase(), QR_EC_LEVEL).unwrap();
     assert_eq!(
         code.version(),
         smallest.version(),
@@ -46,7 +47,8 @@ fn svg_draws_exactly_the_dark_modules_of_the_text() {
     for text in [invite_like(754), varied_invite(754)] {
         // when
         let svg = invite_qr_svg(&text).expect("fits");
-        let code = QrCode::with_error_correction_level(&text, QR_EC_LEVEL).unwrap();
+        let code =
+            QrCode::with_error_correction_level(text.to_ascii_uppercase(), QR_EC_LEVEL).unwrap();
         // then: the picture has the dark modules of the code built again from the same text, and no others
         let drawn = dark_in_svg(&svg);
         assert!(!drawn.is_empty(), "nothing is drawn");
@@ -90,12 +92,33 @@ fn text_too_long_for_any_version_gets_no_code() {
 }
 
 #[test]
+fn typical_invite_code_is_smaller_in_upper_case() {
+    // given: a typical invite of five members
+    let text = invite_like(508);
+    // when
+    let code = invite_qr_code(&text).expect("fits");
+    let lower = QrCode::with_error_correction_level(&text, QR_EC_LEVEL).unwrap();
+    // then: the code is of a smaller version than the lower-case text would give
+    assert!(
+        matches!(code.version(), Version::Normal(v) if v <= 12),
+        "{:?}",
+        code.version()
+    );
+    assert!(
+        code.width() < lower.width(),
+        "{:?} vs {:?}",
+        code.version(),
+        lower.version()
+    );
+}
+
+#[test]
 fn qr_is_added_next_to_the_other_fields() {
     // given: a usual response body
     let text = invite_like(159);
     let body = json!({"invite": text, "holders": 2, "reach": "spread"});
     // when
-    let with = with_qr(body);
+    let with = with_qr(body, &text);
     // then: the picture of the same text is added and nothing else changes
     assert_eq!(with["qr"], json!(invite_qr_svg(&text).unwrap()));
     assert_eq!(
@@ -106,12 +129,26 @@ fn qr_is_added_next_to_the_other_fields() {
 }
 
 #[test]
+fn qr_is_drawn_from_the_qr_text() {
+    // given: a full invite and a shorter one for the code
+    let full = invite_like(508);
+    let short = invite_like(300);
+    let body = json!({"invite": full, "holders": 2, "reach": "spread"});
+    // when
+    let with = with_qr(body, &short);
+    // then: the picture is of the short text, the invite stays whole
+    assert_eq!(with["qr"], json!(invite_qr_svg(&short).unwrap()));
+    assert_ne!(with["qr"], json!(invite_qr_svg(&full).unwrap()));
+    assert_eq!(with["invite"], json!(full));
+}
+
+#[test]
 fn long_invite_body_gets_null_qr() {
     // given: a body whose invite does not fit
     let text = invite_like(LIMIT + 1);
     let body = json!({"invite": text, "holders": 1, "reach": "issuer_and_one"});
     // when
-    let with = with_qr(body);
+    let with = with_qr(body, &text);
     // then: the field is there and null, the rest is as it was
     assert!(with.as_object().unwrap().contains_key("qr"), "no qr field");
     assert!(with["qr"].is_null());
@@ -131,7 +168,7 @@ fn body_without_invite_gets_null_qr() {
     ];
     for body in bodies {
         // when
-        let with = with_qr(body.clone());
+        let with = with_qr(body.clone(), &invite_like(159));
         // then: null qr, the other fields are kept
         assert!(with.as_object().unwrap().contains_key("qr"), "{body}");
         assert!(with["qr"].is_null(), "{body}");

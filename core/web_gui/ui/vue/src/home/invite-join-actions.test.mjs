@@ -128,6 +128,7 @@ describe("sendInvite > guards", () => {
 
   it("isInvite looks at the trimmed start", () => {
     assert.equal(isInvite("  mesh-invite2-x"), true);
+    assert.equal(isInvite("  MESH-INVITE2-ABC"), true);
     assert.equal(isInvite("mesh2-x"), false);
   });
 });

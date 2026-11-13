@@ -85,3 +85,16 @@ fn a_version_5_is_a_different_format() {
         "{text}"
     );
 }
+
+#[test]
+fn upper_case_invite_parses_like_lower() {
+    // given: a valid invite and the same text in upper case, as a QR scanner may return it
+    let text = current();
+    // when
+    let lower = parse(&text).expect("lower case parses");
+    let upper = parse(&text.to_uppercase()).expect("upper case parses");
+    // then: the same head, members and notes
+    assert_eq!(format!("{:?}", upper.head), format!("{:?}", lower.head));
+    assert_eq!(format!("{:?}", upper.peers), format!("{:?}", lower.peers));
+    assert_eq!(upper.warnings, lower.warnings);
+}

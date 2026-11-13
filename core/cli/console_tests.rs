@@ -65,6 +65,7 @@ fn dealt_invite_logs_notes_and_reach() {
     let first_new_seq = crate::node::output::log_page(0, 1).last_seq;
     let dealt = crate::invite::Dealt {
         text: "the-string".to_string(),
+        qr_text: "the-string".to_string(),
         holders: Vec::new(),
     };
     print_dealt_invite(&dealt);

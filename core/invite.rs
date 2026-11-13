@@ -55,6 +55,9 @@ pub const INVITE_PREFIX: &str = "mesh-invite2-";
 pub const OLD_INVITE_PREFIX: &str = "mesh-invite1-";
 /// How many members (counting the inviter) fit in one invite.
 pub const MAX_INVITE_PEERS: usize = 5;
+/// How many members the QR code of an invite carries: the issuer and the holders of the copy come first
+/// in `spread::ordered`, so the first three are the ones most likely online; fewer entries keep the code small.
+pub const QR_INVITE_PEERS: usize = 3;
 /// How many direct addresses a record without relay holds.
 pub const MAX_DIRECT_ADDRS: usize = 2;
 /// The same limit when the default route is unknown: a LAN address can't be told from a bridge one,

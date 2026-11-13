@@ -9,6 +9,7 @@ fn id(n: u8) -> PeerId {
 fn dealt_with(count: u8) -> Dealt {
     Dealt {
         text: "mesh-invite-SECRET".into(),
+        qr_text: "mesh-invite-SECRET".into(),
         holders: (1..=count).map(id).collect(),
     }
 }
@@ -46,4 +47,13 @@ fn console_line_for_spread_says_works_without_this_computer() {
     assert!(Reach::Spread
         .console_line()
         .contains("even without this computer"));
+}
+
+#[test]
+fn without_holders_uses_one_text_for_qr() {
+    // given / when
+    let dealt = Dealt::without_holders("mesh-invite2-abc".into());
+    // then
+    assert_eq!(dealt.qr_text, dealt.text);
+    assert!(dealt.holders.is_empty());
 }
