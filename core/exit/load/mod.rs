@@ -11,10 +11,12 @@
 #![allow(dead_code)]
 
 mod buckets;
+mod client;
 mod counts;
 mod meter;
 mod verdict;
 
+pub(crate) use client::{Answer, ExitAnswers};
 pub(crate) use counts::Outcome;
 pub(crate) use meter::{LoadSnapshot, Meter};
 pub(crate) use verdict::Reason;
