@@ -25,7 +25,7 @@ mod defaults {
                 MemoryDefaults::MIDDLE.rss_guard,
                 MemoryDefaults::MIDDLE.stream_window_kib
             ),
-            (50, 64, true, 0)
+            (150, 64, true, 0)
         );
         assert_eq!(
             (

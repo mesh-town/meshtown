@@ -34,7 +34,7 @@ impl MemoryDefaults {
         rss_guard: true,
     };
     pub(crate) const MIDDLE: MemoryDefaults = MemoryDefaults {
-        max_streams: 50,
+        max_streams: 150,
         stream_window_kib: 0,
         warn_mib: 64,
         rss_guard: true,
