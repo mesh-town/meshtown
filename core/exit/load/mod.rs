@@ -13,6 +13,7 @@ mod announce;
 #[allow(dead_code)]
 mod board;
 mod buckets;
+mod client;
 mod counts;
 mod meter;
 mod verdict;
@@ -21,6 +22,7 @@ pub use announce::run_exit_load_announce;
 // Read by the state snapshot in a later step.
 #[allow(unused_imports)]
 pub(crate) use board::{read_exit_loads, Cause, ExitLoad};
+pub(crate) use client::{Answer, ExitAnswers};
 pub(crate) use counts::Outcome;
 pub(crate) use meter::{LoadSnapshot, Meter};
 pub(crate) use verdict::Reason;

@@ -33,6 +33,7 @@ pub(crate) mod probe;
 mod ring;
 mod routes;
 mod snapshot;
+mod snapshot_exit;
 #[cfg(test)]
 pub(crate) mod test_host;
 mod token;
