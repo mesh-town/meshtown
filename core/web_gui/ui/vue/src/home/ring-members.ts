@@ -2,6 +2,7 @@
 
 import { compareLabels } from "../common/locale.ts";
 import type { ChosenExit, NodeState, PeerInfo } from "../core/api-types.ts";
+import { exitIsBusy } from "./exit-busy.ts";
 import { ROLE_ORDER } from "./ring-config.ts";
 import type { RingRole } from "./ring-config.ts";
 
@@ -11,6 +12,8 @@ export interface RingMember {
   idFull: string | null;
   /** The path to the member goes through another member (`path === "relay"`); only the exit we use and online members are marked. */
   relayed: boolean;
+  /** The exit we use is overloaded (set only then). */
+  busy?: true;
 }
 
 type Snapshot = Partial<NodeState> | null;
@@ -25,9 +28,10 @@ function activeExit(state: Partial<NodeState>): ChosenExit | null {
   return exits.find((e) => e.active) || exits[0] || null;
 }
 
-function memberOf(peer: PeerInfo, viaId: string | null, clients: string[]): RingMember {
-  const role = roleOf(peer, viaId, clients);
-  return { role, label: labelOf(peer), idFull: peer.id_full, relayed: (role === "via" || role === "online") && peer.path === "relay" };
+function memberOf(peer: PeerInfo, via: ChosenExit | null, clients: string[]): RingMember {
+  const role = roleOf(peer, via ? via.id_full : null, clients);
+  const busy = role === "via" && exitIsBusy(via) ? { busy: true as const } : {};
+  return { role, label: labelOf(peer), idFull: peer.id_full, relayed: (role === "via" || role === "online") && peer.path === "relay", ...busy };
 }
 
 function roleOf(peer: PeerInfo, viaId: string | null, clients: string[]): RingRole {
@@ -55,15 +59,14 @@ export function roleGroups(members: RingMember[]): RoleGroup[] {
 
 function missingVia(exit: ChosenExit | null, peers: PeerInfo[]): RingMember[] {
   if (exit === null || peers.some((p) => p.id_full === exit.id_full)) return [];
-  return [{ role: "via", label: labelOf(exit), idFull: exit.id_full, relayed: false }];
+  return [{ role: "via", label: labelOf(exit), idFull: exit.id_full, relayed: false, ...(exitIsBusy(exit) ? { busy: true as const } : {}) }];
 }
 
 export function ringMembers(state: Snapshot): RingMember[] {
   if (!state || !state.peers) return [];
   const peers = state.peers.filter((p) => !p.self);
   const exit = activeExit(state);
-  const viaId = exit ? exit.id_full : null;
   const clients = state.exit?.clients || [];
-  const found: RingMember[] = peers.map((p) => memberOf(p, viaId, clients));
+  const found: RingMember[] = peers.map((p) => memberOf(p, exit, clients));
   return [...found, ...missingVia(exit, peers)].sort(byRoleThenLabel);
 }

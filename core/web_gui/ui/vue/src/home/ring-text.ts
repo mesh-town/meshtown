@@ -1,9 +1,11 @@
 /* Ring texts: the center, the legend, the arc tooltip. */
 
+import type { PanelLevel } from "./home-view.ts";
 import type { RingRole } from "./ring-config.ts";
 import type { RingArc } from "./ring-arcs.ts";
 import { roleGroups } from "./ring-members.ts";
 import type { RingMember } from "./ring-members.ts";
+import { HOME_RING_SINGLE_VIA_BUSY, busyLegendText } from "./exit-busy-texts.ts";
 import {
   HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_RING_ALONE, HOME_RING_NO_NET, HOME_RING_SINGLE_CLIENT, HOME_RING_SINGLE_VIA,
   HOME_RING_SINGLE_ONLINE_RELAYED, HOME_RING_SINGLE_VIA_RELAYED, ringOnlineRelayedGroupText,
@@ -19,9 +21,11 @@ export interface RingLegendItem {
   text: string;
   /** The legend dot is hollow: the path goes through another member. */
   relayed: boolean;
+  /** The exit is overloaded: the legend dot is orange. */
+  busy?: true;
 }
 
-export function ringCenter(members: RingMember[], level: "green" | "red" | "grey"): RingCenter {
+export function ringCenter(members: RingMember[], level: PanelLevel): RingCenter {
   if (members.length > 0) return { main: ringCenterMainText(members.filter((m) => m.role !== "offline").length, members.length), sub: HOME_LINK_ONLINE };
   return { main: level === "green" ? HOME_RING_ALONE : HOME_RING_NO_NET, sub: "" };
 }
@@ -42,12 +46,16 @@ const GROUP_TEXT: Record<RingRole, (count: number, hasVia: boolean) => string> =
 const groupText = (role: RingRole, count: number, relayed: boolean, hasVia: boolean): string =>
   role === "online" && relayed ? ringOnlineRelayedGroupText(count) : GROUP_TEXT[role](count, hasVia);
 
-const legendOf = (role: RingRole, list: RingMember[], relayed: boolean, hasVia: boolean): string =>
-  role === "via" ? ringViaLegendText(list[0].label, relayed) : groupText(role, list.length, relayed, hasVia);
+const isBusyVia = (role: RingRole, list: RingMember[]): boolean => role === "via" && list[0].busy === true;
+
+const legendOf = (role: RingRole, list: RingMember[], relayed: boolean, hasVia: boolean): string => {
+  if (isBusyVia(role, list)) return busyLegendText(list[0].label, relayed);
+  return role === "via" ? ringViaLegendText(list[0].label, relayed) : groupText(role, list.length, relayed, hasVia);
+};
 
 export function ringLegend(members: RingMember[]): RingLegendItem[] {
   const hasVia = members.some((m) => m.role === "via");
-  return roleGroups(members).map((g) => ({ role: g.role, text: legendOf(g.role, g.list, g.relayed, hasVia), relayed: g.relayed }));
+  return roleGroups(members).map((g) => ({ role: g.role, text: legendOf(g.role, g.list, g.relayed, hasVia), relayed: g.relayed, ...(isBusyVia(g.role, g.list) ? { busy: true as const } : {}) }));
 }
 
 const SINGLE_TEXT: Record<RingRole, string> = {
@@ -63,10 +71,13 @@ const SINGLE_RELAYED: Partial<Record<RingRole, string>> = {
   online: HOME_RING_SINGLE_ONLINE_RELAYED,
 };
 
-const singleText = (role: RingRole, relayed: boolean): string => (relayed && SINGLE_RELAYED[role]) || SINGLE_TEXT[role];
+const singleText = (m: RingMember, role: RingRole): string => {
+  if (role === "via" && m.busy) return HOME_RING_SINGLE_VIA_BUSY;
+  return (m.relayed && SINGLE_RELAYED[role]) || SINGLE_TEXT[role];
+};
 
 // `hasVia` — the ring has an exit member, so the online group reads "Also online".
 export function arcTitle(arc: RingArc, hasVia = false): string {
-  if (arc.members.length === 1) return `${arc.members[0].label} — ${singleText(arc.role, arc.members[0].relayed)}`;
+  if (arc.members.length === 1) return `${arc.members[0].label} — ${singleText(arc.members[0], arc.role)}`;
   return groupText(arc.role, arc.members.length, arc.members.every((m) => m.relayed), hasVia);
 }
