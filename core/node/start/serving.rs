@@ -203,6 +203,15 @@ async fn start_domain_background(
         ))
         .abort_handle(),
     );
+    background_abort_handles.push(
+        crate::node::output::spawn(crate::exit::load::run_exit_load_announce(
+            domain_list.shared_replica(),
+            net.exit_on.clone(),
+            crate::exit::ExitLimits::process(),
+            net.exit_announce_wakeup.clone(),
+        ))
+        .abort_handle(),
+    );
     access
 }
 
