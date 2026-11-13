@@ -173,7 +173,7 @@ describe("netTabs", () => {
   describe("a network with members, none of them online", () => {
     it("status offline: the tail is no connection", () => {
       const { store } = setup({ [A]: { brief: { status: "offline", peers_online: 0, peers_total: 2 } }, [B]: {} });
-      assert.equal(netTabs(store)[0].sub, "· no connection");
+      assert.equal(netTabs(store)[0].sub, "no connection");
     });
     it("status offline: the hover title says no connection", () => {
       const { store } = setup({ [A]: { brief: { status: "offline", peers_online: 0, peers_total: 2 } }, [B]: {} });
@@ -188,21 +188,21 @@ describe("netTabs", () => {
   describe("a broken network", () => {
     it("shows no connection even when peers are counted online", () => {
       const { store } = setup({ [A]: { brief: { status: "broken", peers_online: 2, peers_total: 2 } }, [B]: {} });
-      assert.equal(netTabs(store)[0].sub, "· no connection");
+      assert.equal(netTabs(store)[0].sub, "no connection");
     });
   });
 
   describe("a healthy network", () => {
     it("shows the online count", () => {
       const { store } = setup({ [A]: { brief: { peers_online: 2, peers_total: 3 } }, [B]: {} });
-      assert.equal(netTabs(store)[0].sub, "· managed · 2 online");
+      assert.equal(netTabs(store)[0].sub, "2 online");
     });
   });
 
   describe("a network with nobody else in it", () => {
     it("is not down: zero of zero online", () => {
       const { store } = setup({ [A]: { brief: { peers_online: 0, peers_total: 0 } }, [B]: {} });
-      assert.equal(netTabs(store)[0].sub, "· managed · 0 online");
+      assert.equal(netTabs(store)[0].sub, "0 online");
     });
   });
 });

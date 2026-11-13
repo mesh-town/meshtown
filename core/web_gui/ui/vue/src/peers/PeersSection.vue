@@ -32,12 +32,12 @@ import PeerRow from "./PeerRow.vue";
 import YouBlock from "./YouBlock.vue";
 import NetSubTabs from "./NetSubTabs.vue";
 import PortsSection from "../ports/PortsSection.vue";
-import AdminsLine from "./AdminsLine.vue";
 import SecondAdminHint from "./SecondAdminHint.vue";
 import DeletedBanner from "../members/DeletedBanner.vue";
 import AdmissionRefused from "./AdmissionRefused.vue";
 import { excludedByName } from "../members/excluded-by.ts";
 import { useInviteNote } from "./invite-note.ts";
+import { adminsLineText } from "./admins-line.ts";
 import { joiningTabs, netTabs, netWho } from "./net-tabs-view.ts";
 import { PEERS_LOADING, PEERS_NETS_HINT_OK, PEERS_NO_STORE, peersBrokenNet, peersNetsHint } from "./peers-texts.ts";
 import { useNetsHint } from "./use-nets-hint.ts";
@@ -59,8 +59,6 @@ const multi = computed(() => visible.value.length >= 2);
 // The hint counts running networks only: a broken slot has a tab but is not a network.
 const networks = computed(() => networkSlots(store.nets, visible.value));
 const joining = computed(() => joiningTabs(store));
-// The row of tabs: the "multi" look (heads, hint) stays for several networks or a join in progress.
-const crowded = computed(() => multi.value || joining.value.length > 0);
 const showRow = computed(() => visible.value.length > 0 || joining.value.length > 0);
 const addOnly = computed(() => showRow.value && store.peersTab === "add");
 const slot = computed(() => (multi.value ? (store.peersTab && visible.value.includes(store.peersTab) ? store.peersTab : visible.value[0]) : store.lead));
@@ -118,7 +116,7 @@ const parts = computed(() => partitionRows(orderedPeers(state.value && state.val
 const rows = computed(() => parts.value.active as PeerInfo[]);
 const excludedLines = computed(() => parts.value.excluded.map((m) => excludedRowLine(m, names.value)));
 const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
-const adminIds = computed(() => menuCtx.value.adminIds);
+const adminsText = computed(() => (menuCtx.value.adminIds.length > 0 ? adminsLineText(menuCtx.value.adminIds, me.value, names.value) : ""));
 const inviteNote = useInviteNote(store, () => slot.value);
 const excludedBy = computed(() => excludedByName(state.value?.network?.excluded_by));
 const menuCtx = computed(() => managedFacts(state.value?.network, members.value, me.value));
@@ -179,9 +177,7 @@ async function exitVia(idFull: string): Promise<void> {
       <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
     </template>
     <template v-else>
-      <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" 
-:multi="crowded" :note="inviteNote" />
-      <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
+      <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" :admins="adminsText" :note="inviteNote" />
       <SecondAdminHint :only-admin="!!menuCtx.onlyAdmin" :closed="state?.members?.closed" />
       <DeletedBanner />
       <AdmissionRefused :active="store.activeSection === 'peers'" :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />

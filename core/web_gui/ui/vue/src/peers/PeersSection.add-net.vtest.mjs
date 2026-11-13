@@ -187,7 +187,7 @@ describe("joining by invite", () => {
       const page = await openTwo("peers/add", { waiting: true });
       await page.whenJoined();
       expect(page.joiningTabs(), "one tab for the waiting network").toHaveLength(1);
-      expect(compact(page.joiningTabs()[0].text())).toMatch(/^New network\s*·\s*joining…$/);
+      expect(compact(page.joiningTabs()[0].text())).toMatch(/^New network\s*joining…$/);
       expect(page.joiningTabs()[0].attributes("href"), "the tab is a link to the slot").toBe("#peers/" + FRESH);
       expect(page.tabsText().match(/joining…/g)).toHaveLength(1);
       expect(location.hash).toBe("#peers/add");

@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import NetTabs from "./NetTabs.vue";
 
-const FRIENDS = { slot: "main", name: "friends", sub: "· 2 online", title: "friends — 2 of 3 members online", votes: 0 };
-const DEVICES = { slot: "k7q2xa", name: "my devices", sub: "· 1 online", title: "my devices — 1 of 1 members online", votes: 0 };
+const FRIENDS = { slot: "main", name: "friends", sub: "2 online", title: "friends — 2 of 3 members online", votes: 0 };
+const DEVICES = { slot: "k7q2xa", name: "my devices", sub: "1 online", title: "my devices — 1 of 1 members online", votes: 0 };
 
 let wrapper;
 afterEach(() => wrapper && wrapper.unmount());
@@ -72,16 +72,16 @@ describe("NetTabs", () => {
     it("shows the name, the online tail and the title", () => {
       const row = render({ tabs: [FRIENDS] });
       expect(tab(row, "friends").text()).toContain("friends");
-      expect(tab(row, "friends").text()).toContain("· 2 online");
+      expect(tab(row, "friends").text()).toContain("2 online");
       expect(tab(row, "friends").attributes("title")).toBe("friends — 2 of 3 members online");
     });
   });
 
   describe("network without connection", () => {
-    it("shows \"· no connection\" instead of the count", () => {
-      const down = { ...DEVICES, sub: "· no connection", title: "my devices — no connection" };
+    it("shows \"no connection\" instead of the count", () => {
+      const down = { ...DEVICES, sub: "no connection", title: "my devices — no connection" };
       const row = render({ tabs: [FRIENDS, down] });
-      expect(tab(row, "my devices").text()).toContain("· no connection");
+      expect(tab(row, "my devices").text()).toContain("no connection");
       expect(tab(row, "my devices").text()).not.toContain("online");
       expect(tab(row, "my devices").attributes("title")).toBe("my devices — no connection");
     });
@@ -100,7 +100,7 @@ describe("NetTabs", () => {
     });
 
     it("keeps the circle on a tab without connection", () => {
-      const down = { ...DEVICES, sub: "· no connection", title: "my devices — no connection", votes: 1 };
+      const down = { ...DEVICES, sub: "no connection", title: "my devices — no connection", votes: 1 };
       const row = render({ tabs: [FRIENDS, down] });
       expect(tab(row, "my devices").get("[title=\"1 to confirm\"]").text()).toBe("1");
     });
@@ -135,11 +135,11 @@ describe("NetTabs", () => {
   });
 
   describe("a network being joined", () => {
-    it("is an inactive label with \"· joining…\" and its own title", () => {
+    it("is an inactive label with \"joining…\" and its own title", () => {
       const row = render({ tabs: [FRIENDS], joining: [{ name: "New network" }] });
       const joining = row.findAll("span").find((s) => s.text().includes("New network"));
       expect(joining, "a label for the incoming network").toBeTruthy();
-      expect(joining.text()).toContain("· joining…");
+      expect(joining.text()).toContain("joining…");
       expect(joining.attributes("title") ?? joining.element.closest("[title]")?.getAttribute("title")).toBe("Joining the network…");
     });
 

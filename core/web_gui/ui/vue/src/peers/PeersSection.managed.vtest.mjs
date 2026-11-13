@@ -38,12 +38,12 @@ describe("the Admin badge", () => {
 describe("the line of admins", () => {
   it("names this computer you and the others by name", async () => {
     const page = await open(managedNode({ meRole: "admin", admins: [ME_FULL, ANNA_FULL] }));
-    expect(page.adminsLine()).toBe("Managed network · Admins: you, anna");
+    expect(page.adminsLine()).toBe("Admins: you, anna");
   });
 
   it("a member computer sees the names only", async () => {
     const page = await open(managedNode({ meRole: "member", admins: [ANNA_FULL, BOB_FULL] }));
-    expect(page.adminsLine()).toBe("Managed network · Admins: anna, bob");
+    expect(page.adminsLine()).toBe("Admins: anna, bob");
   });
 });
 

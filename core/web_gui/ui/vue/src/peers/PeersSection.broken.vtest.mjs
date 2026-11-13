@@ -35,7 +35,7 @@ describe("a broken slot", () => {
   it('shows the broken tab with "can\'t start"', async () => {
     const page = await open("peers");
     expect(page.tabB().exists()).toBe(true);
-    expect(page.tabB().text()).toContain("· can't start");
+    expect(page.tabB().text()).toContain("can't start");
     expect(page.tabB().attributes("title")).toContain("can't start: its saved settings can't be read");
   });
 

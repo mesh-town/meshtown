@@ -34,29 +34,26 @@ export const PEERS_REFUSED = "Not available as an exit";
 
 // Several networks: the tab row, the tab header, the hint.
 export const PEERS_INVITE_ONE = "Invite a member";
+export const PEERS_MANAGED_BADGE = "Managed";
 export const PEERS_INVITE_COPIED = "Invite copied. It works once, for 24 hours — send it to one person in a private message.";
 export const PEERS_TAB_ADD = "Join or create another network";
 export const PEERS_TAB_ADD_FULL = "Mesh Town can be in up to 8 networks at once";
 export const PEERS_TAB_ADD_MARK = "+";
 export const PEERS_TAB_JOINING = "Joining the network…";
-export const PEERS_TAB_JOINING_SUB = "· joining…";
+export const PEERS_TAB_JOINING_SUB = "joining…";
 export const PEERS_ADMIN_BADGE = "Admin";
-export const PEERS_TAB_DELETED_SUB = "· deleted";
-export const PEERS_TAB_REFUSED_SUB = "· refused";
-export const PEERS_TAB_BROKEN_SUB = "· can't start";
+export const PEERS_TAB_DELETED_SUB = "deleted";
+export const PEERS_TAB_REFUSED_SUB = "refused";
+export const PEERS_TAB_BROKEN_SUB = "can't start";
 
 export const peersTabBrokenTitle = (net: string): string => `${net} — can't start: its saved settings can't be read`;
 
 export const peersBrokenNet = (): string =>
   "This network can't start: its saved settings can't be read, for example a network key from an older version. Ask an admin for a new invite to join it again.";
 export const PEERS_NEW_NET = "New network";
-const PEERS_TAB_NO_CONN = "· no connection";
+const PEERS_TAB_NO_CONN = "no connection";
 export const PEERS_NETS_HINT_OK = "OK";
 export const PEERS_NETS_HINT_KEY = "meshtown.netsHintSeen";
-
-export function peersInviteTo(net: string): string {
-  return `Invite to "${net}"`;
-}
 
 // "just you" · "you and 1 other, online" · "you and 2 others, both online" · "you and 5 others, all online" · "you and 5 others, 3 online".
 export function peersWhoText(online: number, total: number): string {
@@ -67,15 +64,14 @@ export function peersWhoText(online: number, total: number): string {
   return others + (total === 2 ? "both" : "all") + " online";
 }
 
-export function peersNetLine(net: string, who: string): string {
-  return `Network "${net}" · ${who}`;
+// "You and 5 others · 4 online": the who-text with a capital, its two halves joined by " · ".
+export function peersNetLine(who: string): string {
+  return who.charAt(0).toUpperCase() + who.slice(1).replace(", ", " · ");
 }
 
 export function peersTabSub(online: number, down: boolean): string {
-  return down ? PEERS_TAB_NO_CONN : `· ${online} online`;
+  return down ? PEERS_TAB_NO_CONN : `${online} online`;
 }
-
-export const peersManagedTabSub = (online: number): string => `· managed · ${online} online`;
 
 export function peersTabTitle(net: string, online: number, total: number, down: boolean): string {
   return down ? `${net} — no connection` : `${net} — ${online} of ${total} members online`;
