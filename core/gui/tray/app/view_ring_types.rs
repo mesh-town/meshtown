@@ -70,7 +70,7 @@ impl RingRole {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ring {
     pub(super) counts: [u16; RING_ROLE_COUNT],
-    /// This computer is an overloaded exit (any visible network): the icon gets a yellow dot over the ring.
+    /// This computer is an overloaded exit (any visible network): the icon gets an orange dot in the centre.
     pub(super) badge: bool,
 }
 

@@ -1,44 +1,44 @@
-//! The "this computer is an overloaded exit" dot in the top-left corner of the tray icon: a yellow disc with a dark rim.
+//! The "this computer is an overloaded exit" dot in the centre of the tray icon: an orange disc with a dark rim.
 //!
-//! What it does: `paint_badge` draws the dot over an RGBA raster that already has the ring (and the disk or the
-//! alert mark) with 8×8 subsampling and alpha blending, the same way `view_alert::paint_alert` draws its disc; it is
-//! painted last, so it lies over the ring.
+//! What it does: `paint_badge` draws the dot over an RGBA raster that already has the ring with 8×8 subsampling
+//! and alpha blending, the same way `view_alert::paint_alert` draws its disc; it takes the centre, where the speed
+//! disk would be.
 //! What it does not do: it does not decide when the dot is needed (`Ring::badge`, set from `exit.load.overloaded` of
 //! all visible networks) and does not draw without a ring (`view_picture::icon_picture` gates that).
 //! Links: called by `view_picture::picture_rgba` when the picture has `badge`.
 
-/// Dot colour (yellow) and rim colour (dark brown): the rim keeps the dot readable on a light menu bar.
-const DOT_RGB: [u8; 3] = [255, 204, 0];
+/// Dot colour (orange) and rim colour (dark brown): the rim keeps the dot readable on a light menu bar.
+const DOT_RGB: [u8; 3] = [255, 180, 0];
 const RIM_RGB: [u8; 3] = [40, 30, 20];
 
 /// Subsampling along each pixel axis (8×8 points).
 const SUBSAMPLES: u32 = 8;
 /// The raster side for which the sizes below are defined.
 const BASE_SIDE_PX: f64 = 36.0;
-/// The dot centre (both axes) and the outer radius, in base pixels; the rim is the outer 1 px.
-const CENTER_PX: f64 = 7.5;
-const RADIUS_PX: f64 = 5.0;
+/// The outer radius in base pixels (as the largest speed disk); the rim is the outer 1 px.
+const RADIUS_PX: f64 = 9.0;
 const RIM_PX: f64 = 1.0;
 
-/// Draws the dot in the top-left corner of `rgba` (`side×side`) over what is there; touches nothing outside it.
+/// Draws the dot in the centre of `rgba` (`side×side`) over what is there; touches nothing outside it.
 pub fn paint_badge(rgba: &mut [u8], side: u32) {
     let scale = f64::from(side) / BASE_SIDE_PX;
-    let reach = ((CENTER_PX + RADIUS_PX) * scale).ceil() as u32 + 1;
-    for y in 0..reach.min(side) {
-        for x in 0..reach.min(side) {
-            let hits = sample_hits(x, y, scale);
+    let center = f64::from(side) / 2.0;
+    for y in 0..side {
+        for x in 0..side {
+            let hits = sample_hits(x, y, center, scale);
             let at = ((y * side + x) * 4) as usize;
             blend(&mut rgba[at..at + 4], hits);
         }
     }
 }
 
-/// The number of subsampling points of a pixel on the rim and on the yellow body.
-fn sample_hits(x: u32, y: u32, scale: f64) -> (u32, u32) {
+/// The number of subsampling points of a pixel on the rim and on the orange body.
+fn sample_hits(x: u32, y: u32, center: f64, scale: f64) -> (u32, u32) {
     (0..SUBSAMPLES * SUBSAMPLES).fold((0, 0), |(rim, body), i| {
         let at =
             |n: u32, v: u32| (f64::from(v) + (f64::from(n) + 0.5) / f64::from(SUBSAMPLES)) / scale;
-        let dist = (at(i % SUBSAMPLES, x) - CENTER_PX).hypot(at(i / SUBSAMPLES, y) - CENTER_PX);
+        let mid = center / scale;
+        let dist = (at(i % SUBSAMPLES, x) - mid).hypot(at(i / SUBSAMPLES, y) - mid);
         if dist > RADIUS_PX {
             return (rim, body);
         }
