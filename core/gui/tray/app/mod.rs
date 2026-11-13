@@ -21,6 +21,7 @@
 //! `gui` (on by default).
 
 #[cfg(feature = "gui")]
+pub(crate) mod exit_marks;
 pub(crate) mod exit_menu;
 #[cfg(feature = "gui")]
 pub(crate) mod exit_menu_click;

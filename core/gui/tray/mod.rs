@@ -37,6 +37,7 @@ mod nets_click;
 mod nets_ui;
 mod node_cmd;
 mod notify;
+mod overload_item;
 pub(crate) mod relaying_item;
 mod spin;
 #[cfg(test)]

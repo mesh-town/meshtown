@@ -7,7 +7,8 @@
 
 use crate::gui::tray::app::snapshot::TrayMembers;
 use crate::gui::tray::app::tray_texts::{
-    status_excluded_text, ADMIT_ITEM_TEXT, ADMIT_TOOLTIP_TAIL, PENDING_TOOLTIP_TAIL,
+    status_excluded_text, ADMIT_ITEM_TEXT, ADMIT_TOOLTIP_TAIL, OWN_OVERLOAD_ITEM_TEXT,
+    OWN_OVERLOAD_TOOLTIP_TAIL, PENDING_TOOLTIP_TAIL,
 };
 use crate::gui::tray::app::view::NodeState;
 
@@ -33,6 +34,24 @@ pub(crate) fn members_item_text(members: TrayMembers) -> Option<&'static str> {
 /// are not excluded.
 pub(crate) fn alert_wanted(members: TrayMembers) -> bool {
     members_item_text(members).is_some()
+}
+
+/// The text of the "turning members away" item; `None` — the item is absent (our exit is not overloaded, or we are
+/// excluded).
+pub(crate) fn own_overload_item_text(
+    overloaded: bool,
+    members: TrayMembers,
+) -> Option<&'static str> {
+    let shown = overloaded && !members.me_excluded;
+    shown.then_some(OWN_OVERLOAD_ITEM_TEXT)
+}
+
+/// The icon hint tail for our own overload; empty when the exit is not overloaded or we are excluded.
+pub(crate) fn own_overload_tail(overloaded: bool, members: TrayMembers) -> &'static str {
+    match own_overload_item_text(overloaded, members) {
+        Some(_) => OWN_OVERLOAD_TOOLTIP_TAIL,
+        None => "",
+    }
 }
 
 /// The icon hint: the first line, plus a tail for each of a request to join and our own waiting.

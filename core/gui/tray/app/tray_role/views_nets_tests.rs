@@ -397,3 +397,25 @@ fn summary_with(extra: Value) -> Value {
     }
     json
 }
+
+#[test]
+fn own_overload_is_seen_in_a_net_that_does_not_carry_the_proxy() {
+    use crate::gui::tray::nets_click::{link_for, menu_facts, MenuTarget};
+
+    // given: only the second network (without the proxy) has its exit on and overloaded
+    let mut summary = overview_json(&[friends(), work()]);
+    summary["slots"][1]["state"]["exit"] =
+        serde_json::json!({"enabled": true, "clients": [], "load": {"overloaded": "streams"}});
+
+    // when
+    let (menu, view) = views_from_state_json(&summary, &plan());
+
+    // then: the menu, the icon badge and the link all see it
+    assert!(menu.own_overloaded);
+    assert!(view.ring.badge());
+    let flags: Vec<bool> = menu.nets.iter().map(|n| n.own_overloaded).collect();
+    assert_eq!(flags, [false, true]);
+    let facts = menu_facts(&menu);
+    let link = link_for(&MenuTarget::Overload, "http://h/", &facts);
+    assert_eq!(link.as_deref(), Some("http://h/#peers/ab12cd"));
+}

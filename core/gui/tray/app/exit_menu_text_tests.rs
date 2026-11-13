@@ -245,3 +245,39 @@ mod first_line_carries_country {
         );
     }
 }
+
+#[test]
+fn exit_item_marks() {
+    // given: a chosen busy exit, an unchosen overloaded one, a quiet one and a chosen busy one that is offline
+    let state = json!({
+        "node": { "status": "online", "id_full": "me00" },
+        "peers": [
+            { "id": "bb22", "id_full": "bb22f", "name": "Reed", "online": true, "exit": true, "overloaded": "streams" },
+            { "id": "cc33", "id_full": "cc33f", "name": "Moss", "online": true, "exit": true },
+            { "id": "dd44", "id_full": "dd44f", "name": "Fern", "online": false, "exit": true, "overloaded": "streams" }
+        ],
+        "route": { "state": "exit", "exits": [
+            { "id": "aa11", "id_full": "aa11f", "name": "Sedge", "online": true, "active": true, "busy": true },
+            { "id": "ee55", "id_full": "ee55f", "name": "Lily", "online": false, "busy": true }
+        ] }
+    });
+
+    // when
+    let labels: Vec<String> = exit_menu_from_json(&state)
+        .items
+        .iter()
+        .map(ExitItem::menu_text)
+        .collect();
+
+    // then
+    assert_eq!(
+        labels,
+        [
+            "🟠 Sedge",
+            "🔴 Lily (offline)",
+            "Reed · overloaded",
+            "Moss",
+            "Fern (offline)"
+        ]
+    );
+}
