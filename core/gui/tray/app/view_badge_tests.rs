@@ -1,4 +1,4 @@
-//! Tests of the own-overload dot: the corner, the colours, what it leaves untouched and when it is not drawn.
+//! Tests of the own-overload dot: the centre, the colours, what it leaves untouched and when it is not drawn.
 
 use crate::gui::tray::app::view::{
     icon_rgba, NetLink, NodeState, PageState, TrayColor, View, ICON_SIDE_PX,
@@ -34,31 +34,42 @@ fn raster(ring: Ring) -> Vec<u8> {
     picture_rgba(&icon_picture(v), ICON_SIDE_PX).expect("raster")
 }
 
-#[test]
-fn badge_is_painted_top_left_over_the_ring() {
-    let with = raster(twelve().with_badge(true));
-    let without = raster(twelve());
-    assert_eq!(pixel(&with, 7, 7), [255, 204, 0, 255]);
-    assert_ne!(pixel(&without, 7, 7), [255, 204, 0, 255]);
-    // The rim (a mix with the dark ring colour) is darker than the body; the far corner of the icon is untouched.
-    assert!(pixel(&with, 3, 7)[0] < 160, "{:?}", pixel(&with, 3, 7));
-    assert_eq!(pixel(&with, 34, 34), pixel(&without, 34, 34));
-}
+const DOT: [u8; 4] = [255, 180, 0, 255];
 
 #[test]
-fn badge_leaves_the_first_sector_untouched() {
-    let painted = raster(twelve().with_badge(true));
-    let plain = raster(twelve());
-    // The first sector (12 to 1 o'clock) in the top right quarter is the same with and without the dot.
-    for y in 0..18 {
-        for x in 18..36 {
-            assert_eq!(pixel(&painted, x, y), pixel(&plain, x, y), "{x},{y}");
-        }
+fn badge_is_painted_in_the_centre() {
+    let with = raster(twelve().with_badge(true));
+    let without = raster(twelve());
+    assert_eq!(pixel(&with, 18, 18), DOT);
+    assert_ne!(pixel(&without, 18, 18), DOT);
+    assert_eq!(pixel(&with, 7, 7), pixel(&without, 7, 7));
+}
+
+fn disk_view(badge: bool) -> View {
+    View {
+        disk: Some(Disk {
+            step: 5,
+            blue_twelfths: 6,
+        }),
+        ..view(
+            twelve().with_badge(badge),
+            TrayColor::Green,
+            NodeState::Running,
+        )
     }
 }
 
 #[test]
-fn badge_and_alert_coexist() {
+fn badge_replaces_the_speed_disk() {
+    let with = picture_rgba(&icon_picture(disk_view(true)), ICON_SIDE_PX).expect("raster");
+    let without = picture_rgba(&icon_picture(disk_view(false)), ICON_SIDE_PX).expect("raster");
+    assert!(icon_picture(disk_view(true)).disk.is_some());
+    assert_eq!(pixel(&with, 18, 18), DOT);
+    assert_ne!(pixel(&without, 18, 18), DOT);
+}
+
+#[test]
+fn alert_hides_the_badge() {
     let v = view(
         twelve().with_badge(true),
         TrayColor::Green,
@@ -67,9 +78,28 @@ fn badge_and_alert_coexist() {
     let picture = icon_picture(v).with_alert(true);
     assert!(picture.alert && picture.badge);
     let rgba = picture_rgba(&picture, ICON_SIDE_PX).expect("raster");
-    assert_eq!(pixel(&rgba, 7, 7), [255, 204, 0, 255]);
-    assert_eq!(pixel(&rgba, 18, 18)[3], 255);
-    assert_ne!(pixel(&rgba, 18, 18), pixel(&raster(twelve()), 18, 18));
+    let alert_only = picture_rgba(
+        &icon_picture(view(twelve(), TrayColor::Green, NodeState::Running)).with_alert(true),
+        ICON_SIDE_PX,
+    )
+    .expect("raster");
+    assert_eq!(rgba, alert_only);
+    assert!(rgba.chunks(4).all(|p| p != DOT));
+}
+
+#[test]
+fn badge_leaves_the_ring_untouched() {
+    let painted = raster(twelve().with_badge(true));
+    let plain = raster(twelve());
+    // Pixels farther than 10 base px from the centre (17.5, 17.5) are the same with and without the dot.
+    for y in 0..36u32 {
+        for x in 0..36u32 {
+            let d = (f64::from(x) + 0.5 - 18.0).hypot(f64::from(y) + 0.5 - 18.0);
+            if d > 10.0 {
+                assert_eq!(pixel(&painted, x, y), pixel(&plain, x, y), "{x},{y}");
+            }
+        }
+    }
 }
 
 #[test]
@@ -78,7 +108,7 @@ fn no_badge_when_grey() {
     let picture = icon_picture(grey).with_idle(grey, IdleRing::default());
     assert!(!picture.badge);
     let rgba = picture_rgba(&picture, ICON_SIDE_PX).expect("idle ring");
-    assert_ne!(pixel(&rgba, 7, 7), [255, 204, 0, 255]);
+    assert_ne!(pixel(&rgba, 18, 18), DOT);
 }
 
 #[test]

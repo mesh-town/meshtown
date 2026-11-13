@@ -23,7 +23,7 @@ pub struct IconPicture {
     pub ring: Option<Ring>,
     pub disk: Option<Disk>,
     pub alert: bool,
-    /// The yellow dot of an overloaded own exit in the top-left corner (only with a ring).
+    /// The orange dot of an overloaded own exit in the centre instead of the disk (only with a ring).
     pub badge: bool,
     /// The number of the white (highlighted) sector of the ring, if any.
     pub lit: Option<u16>,
@@ -114,16 +114,16 @@ pub fn icon_picture(view: View) -> IconPicture {
 pub fn picture_rgba(picture: &IconPicture, side: u32) -> Option<Vec<u8>> {
     let mut rgba = base_rgba(picture, side)?;
     paint_centre(&mut rgba, picture, side);
-    if picture.badge && picture.ring.is_some() {
-        paint_badge(&mut rgba, side);
-    }
     Some(rgba)
 }
 
-/// The alert mark, or else the speed disk, in the centre.
+/// The alert mark, or else the overload dot, or else the speed disk, in the centre.
 fn paint_centre(rgba: &mut [u8], picture: &IconPicture, side: u32) {
     if picture.alert {
         return paint_alert(rgba, side);
+    }
+    if picture.badge && picture.ring.is_some() {
+        return paint_badge(rgba, side);
     }
     if let Some(disk) = picture.disk {
         paint_disk(rgba, side, disk);
