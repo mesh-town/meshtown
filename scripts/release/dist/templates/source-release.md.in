@@ -1,0 +1,13 @@
+## Download
+
+| System | Download |
+|---|---|
+| Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk): open the link on the phone, open the file and allow installing from this source (64-bit ARM, Android 7.0 or newer) |
+| Windows | [meshtown-setup.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-setup.exe) (installer) |
+| macOS | `brew install mesh-town/macos/meshtown`, or the zip below |
+| Debian, Ubuntu | [meshtown_amd64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb) · [meshtown_arm64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_arm64.deb), then `sudo apt install ./meshtown_<arch>.deb` |
+| Linux, routers | the archives below; OpenWrt, Keenetic and MikroTik: [Install](https://github.com/mesh-town/meshtown#install) |
+
+The Android, Windows and Debian links always give the newest build. The Windows installer and the container images
+of version @VERSION@: [meshtown-dist v@VERSION@](https://github.com/mesh-town/meshtown-dist/releases/tag/v@VERSION@).
+
