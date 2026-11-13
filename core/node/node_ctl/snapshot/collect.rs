@@ -8,8 +8,6 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::config_file::{IfaceFilter, ListenAccess};
 use crate::members::access::report::{members_reply, vote_summary, VoteSummary};
-use crate::members::stale_peers;
-use crate::node::node_state;
 use crate::node::program_version;
 use crate::node::RunningNode;
 use crate::ports_sharing::PortView;
@@ -25,9 +23,6 @@ use super::build::{build, socks_lan, Inputs};
 use super::doc_cache::{DocCache, DocParts};
 use super::ports::build_ports;
 
-/// Timeout for each document read (`domains.list()`, `checks.check_views()`, `ports_doc.read_all()`, etc.).
-const READ_TIMEOUT: Duration = Duration::from_millis(800);
-
 /// Addresses of this machine on the networks open to the proxy (empty with `localhost`).
 fn socks_lan_addrs(access: ListenAccess, ifaces: &IfaceFilter) -> Vec<IfaceAddr> {
     admitted_lan(access, ifaces, &current_view(), lan_addrs())
@@ -42,63 +37,6 @@ pub(crate) struct Collected {
     pub partial: bool,
     /// When the collection finished; `snapshot_age_ms` of the page is measured from it.
     pub collected_at: tokio::time::Instant,
-}
-
-/// Reads a document under `READ_TIMEOUT`: an error or timeout gives `empty` and `false`.
-async fn read_or<T, E>(
-    fut: impl std::future::Future<Output = Result<T, E>>,
-    empty: T,
-) -> (T, bool) {
-    match tokio::time::timeout(READ_TIMEOUT, fut).await {
-        Ok(Ok(v)) => (v, true),
-        _ => (empty, false),
-    }
-}
-
-/// Program versions of members from the shared document and the read-success flag (without the own version).
-async fn program_versions_of(node: &RunningNode) -> (HashMap<PeerId, String>, bool) {
-    read_or(
-        program_version::read_program_versions(node.domains.shared_replica().as_ref()),
-        HashMap::new(),
-    )
-    .await
-}
-
-/// Time of each author's last write in the document and the read-success flag.
-async fn doc_seen_of(node: &RunningNode, now_unix: u64) -> (HashMap<PeerId, u64>, bool) {
-    let r = node.domains.shared_replica();
-    read_or(
-        stale_peers::read_doc_seen(r.as_ref(), now_unix),
-        HashMap::new(),
-    )
-    .await
-}
-
-/// Seven document reads under a timeout (`domains.list()`, `checks.check_views()`,
-/// `node_state::read_exit_flags`, `geoip::read_countries`, program versions, `ports_doc.read_all()`,
-/// `read_doc_seen`) and the "all succeeded" flag. Called only by `DocCache::read_doc_parts_cached`.
-pub(super) async fn read_doc_parts(node: &RunningNode, now_unix: u64) -> (DocParts, bool) {
-    let (list, list_ok) = read_or(node.domains.list(), Vec::new()).await;
-    let (views, views_ok) = read_or(node.checks.check_views(), Vec::new()).await;
-    let r = node.domains.shared_replica();
-    let (exits, exits_ok) = read_or(node_state::read_exit_flags(r.as_ref()), HashMap::new()).await;
-    let (countries, countries_ok) =
-        read_or(geoip::read_countries(r.as_ref()), HashMap::new()).await;
-    let (program_versions, versions_ok) = program_versions_of(node).await;
-    let (port_views, ports_ok) = read_or(node.ports_doc.read_all(), Vec::new()).await;
-    let (doc_seen, doc_seen_ok) = doc_seen_of(node, now_unix).await;
-    let read_complete =
-        list_ok && views_ok && exits_ok && countries_ok && ports_ok && versions_ok && doc_seen_ok;
-    let parts = DocParts {
-        list,
-        views,
-        exits,
-        countries,
-        program_versions,
-        port_views,
-        doc_seen,
-    };
-    (parts, read_complete)
 }
 
 fn unix_now() -> u64 {
@@ -282,7 +220,7 @@ pub(in crate::node::node_ctl) fn overlay_exit_interface(
 ) {
     snap.exit.interface = exit_iface_of(node)
         .as_ref()
-        .map(super::build::exit_iface_info);
+        .map(super::exit_info::exit_iface_info);
 }
 
 #[cfg(test)]

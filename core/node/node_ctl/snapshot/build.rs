@@ -1,7 +1,6 @@
 //! Pure assembly of `NodeSnapshot` from already-read data (`Inputs`) — no network and no `.await`.
-//! The sources and formulas are documented in the node-web design notes.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::time::Instant;
 
@@ -22,6 +21,7 @@ use crate::web_gui::{
 };
 
 use super::collect::Collected;
+use super::exit_info::{exit_clients, exit_iface_info};
 use super::peers::build_peers;
 #[cfg(test)]
 use super::process::link_status;
@@ -133,16 +133,6 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
     }
 }
 
-/// The page form of an exit interface with its live state.
-pub(super) fn exit_iface_info(
-    pair: &(String, crate::iface_bind::IfaceState),
-) -> crate::iface_bind::ExitIfaceInfo {
-    crate::iface_bind::ExitIfaceInfo {
-        name: pair.0.clone(),
-        state: pair.1,
-    }
-}
-
 /// `lan` in `socks`: "address:port" and the interface for other devices on the network; empty — the proxy is off
 /// or in `localhost` mode (then the address list is empty too).
 pub(super) fn socks_lan(socks: Option<SocketAddr>, lan: Vec<IfaceAddr>) -> Vec<SocksLan> {
@@ -152,21 +142,6 @@ pub(super) fn socks_lan(socks: Option<SocketAddr>, lan: Vec<IfaceAddr>) -> Vec<S
         iface,
     };
     lan.into_iter().map(one).collect()
-}
-
-/// Exit clients for `exit.clients`: full ids, network members only, ascending by string, without
-/// duplicates; `[]` if the exit is off.
-fn exit_clients(i: &Inputs<'_>) -> Vec<String> {
-    if !i.exit_on {
-        return Vec::new();
-    }
-    let ids: BTreeSet<String> = i
-        .exit_clients
-        .iter()
-        .filter(|id| i.members.contains(*id))
-        .map(|id| id.to_string())
-        .collect();
-    ids.into_iter().collect()
 }
 
 /// Builds `TransportInfo`: the path to itself, relay, DHT, NAT and its own addresses.
@@ -297,37 +272,29 @@ fn verdict_kind(v: CheckVerdict) -> VerdictKind {
 }
 
 #[cfg(test)]
-#[path = "build_exit_tests.rs"]
-mod exit_tests;
-
-#[cfg(test)]
-#[path = "build_tests.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "build_peers_tests.rs"]
-mod peers_tests;
-
-#[cfg(test)]
-#[path = "build_more_tests.rs"]
-mod more_tests;
-
-#[cfg(test)]
 #[path = "build_cache_tests.rs"]
 mod cache_tests;
-
 #[cfg(test)]
 #[path = "build_country_tests.rs"]
 mod country_tests;
-
 #[cfg(test)]
-#[path = "build_program_version_tests.rs"]
-mod program_version_tests;
-
+#[path = "build_exit_tests.rs"]
+mod exit_tests;
 #[cfg(test)]
-#[path = "build_stale_tests.rs"]
-mod stale_tests;
-
+#[path = "build_more_tests.rs"]
+mod more_tests;
 #[cfg(test)]
 #[path = "pac_url_tests.rs"]
 mod pac_url_tests;
+#[cfg(test)]
+#[path = "build_peers_tests.rs"]
+mod peers_tests;
+#[cfg(test)]
+#[path = "build_program_version_tests.rs"]
+mod program_version_tests;
+#[cfg(test)]
+#[path = "build_stale_tests.rs"]
+mod stale_tests;
+#[cfg(test)]
+#[path = "build_tests.rs"]
+mod tests;
