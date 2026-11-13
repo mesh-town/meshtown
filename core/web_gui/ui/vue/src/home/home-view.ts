@@ -216,6 +216,8 @@ export interface NetRowView {
   slot: string;
   title: string;
   summary: string;
+  /** Under the ring: requests to confirm, or "no connection" without a state; empty otherwise. */
+  hint: string;
   dot: "green" | "grey";
   admitting: number;
 }
@@ -223,6 +225,11 @@ export interface NetRowView {
 function netSummary(brief: NetBrief): string {
   if (brief.peers_total === 0) return NETS_JUST_YOU;
   return brief.peers_online > 0 ? netsOnlineText(brief.peers_online, brief.peers_total) : NETS_NO_CONNECTION;
+}
+
+function tileHint(known: boolean, admitting: number): string {
+  if (!known) return NETS_NO_CONNECTION;
+  return admitting > 0 ? netsAdmittingTail(admitting).replace(/^ · /, "") : "";
 }
 
 // No slice yet (nothing to talk to) reads as "no connection".
@@ -234,6 +241,7 @@ export function netRowView(brief: NetBrief, slot: SlotSlice | undefined, title: 
     slot: brief.id,
     title,
     summary: base + (known && admitting > 0 ? netsAdmittingTail(admitting) : ""),
+    hint: tileHint(known, admitting),
     dot: known && brief.peers_online > 0 ? "green" : "grey",
     admitting,
   };

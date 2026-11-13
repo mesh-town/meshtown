@@ -1,4 +1,4 @@
-/* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one row (a link to the network tab) per network with the member count, the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
+/* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one tile (a link to the network tab) per network with its ring, the exit line and the red exit warnings that name the network; no single-node ring, no invite, no "This computer".
  * With one network the page keeps its former look and requests. The whole page runs on a fake node. */
 
 import { openInviteDialog, submitInviteDialog } from "../testing/invite-dialog.mjs";
@@ -38,7 +38,12 @@ describe("Home with two networks", () => {
 
     it("tells in each row how many members are online", async () => {
       const { wrapper } = await setup();
-      for (const row of rowsOf(wrapper)) expect(flat(row), "1 of 2 members online").toContain("1 of 2 online");
+      for (const row of rowsOf(wrapper)) expect(centerOf(row), "1 of 2 members online").toBe("1 of 2 online");
+    });
+
+    it("each net tile has a ring", async () => {
+      const { wrapper } = await setup();
+      for (const link of netLinks(wrapper)) expect(link.find(".ring-mark").exists(), link.attributes("data-slot")).toBe(true);
     });
 
     it("the second row leads to the tab of that network", async () => {
@@ -51,9 +56,9 @@ describe("Home with two networks", () => {
       expect(await targetOf(netLinks(wrapper)[0])).toBe("#peers/main");
     });
 
-    it("shows no ring, no invite card and no \"This computer\" card", async () => {
+    it("shows no single-node ring, no invite card and no \"This computer\" card", async () => {
       const { wrapper } = await setup();
-      expect(wrapper.find(".ring-mark").exists(), "ring").toBe(false);
+      expect(wrapper.findAll(".ring-mark").filter((r) => !r.element.closest("#home-nets")), "ring outside the tiles").toHaveLength(0);
       expect(wrapper.find("#home-invite").exists(), "invite").toBe(false);
       expect(wrapper.find("#home-computer").exists(), "this computer").toBe(false);
       expect(wrapper.find("#field-node-name").exists(), "name field").toBe(false);
@@ -85,32 +90,24 @@ describe("Home with two networks", () => {
   });
 
   describe("a network has no connection", () => {
-    it("its row says \"no connection\" instead of the count", async () => {
+    it("its ring counts nobody online", async () => {
       const { wrapper } = await setup({ patchB: { state: stateB({ others: "offline" }) } });
-      const row = rowsOf(wrapper)[1];
-      expect(flat(row)).toContain("no connection");
-      expect(flat(row)).not.toContain("online");
-    });
-
-    it("its dot is grey, and the dot of the other row is green", async () => {
-      const { wrapper } = await setup({ patchB: { state: stateB({ others: "offline" }) } });
-      const [rowA, rowB] = rowsOf(wrapper);
-      expect(dotOf(rowB), "row of B").toContain("grey");
-      expect(dotOf(rowA), "row of A").toContain("green");
+      expect(centerOf(rowsOf(wrapper)[1])).toBe("0 of 2 online");
+      expect(centerOf(rowsOf(wrapper)[0])).toBe("1 of 2 online");
     });
   });
 
   describe("a network has nobody but this computer", () => {
-    it("its row says \"just you\"", async () => {
+    it("its ring says \"only you\"", async () => {
       const { wrapper } = await setup({ patchB: { state: stateB({ others: "none" }) } });
-      expect(flat(rowsOf(wrapper)[1])).toContain("just you");
+      expect(centerOf(rowsOf(wrapper)[1])).toBe("only you");
     });
   });
 
   describe("requests wait in a network", () => {
     it("the row of that network adds \"2 requests to confirm\"", async () => {
       const { wrapper } = await setup({ patchB: { state: stateB({ admitting: 2 }) } });
-      expect(flat(rowsOf(wrapper)[1])).toContain("1 of 2 online · 2 requests to confirm");
+      expect(flat(rowsOf(wrapper)[1])).toContain("2 requests to confirm");
       expect(flat(rowsOf(wrapper)[0])).not.toContain("to confirm");
     });
 
@@ -339,7 +336,7 @@ const netLinks = (wrapper) => wrapper.findAll("#home-nets a[data-slot]");
 // A row of the networks list: the link itself.
 const rowsOf = (wrapper) => netLinks(wrapper).map((link) => ({ text: () => link.element.textContent, element: link.element, find: (sel) => link.element.querySelector(sel) }));
 
-const dotOf = (row) => row.find('[class*="dot"]')?.className ?? "";
+const centerOf = (row) => [...row.element.querySelectorAll(".ring-center-main, .ring-center-sub")].map((e) => e.textContent).join(" ").trim();
 
 // Where a network row link or chip leads: its `href`, or the hash after a click when it is a button.
 async function targetOf(wrapperEl) {
