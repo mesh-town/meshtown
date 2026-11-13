@@ -43,6 +43,11 @@ pub(super) fn plan(want: Option<Reason>, have: Option<Duration>) -> Action {
     }
 }
 
+/// The record is needed only while the exit is on and overloaded.
+pub(super) fn wanted(exit_on: bool, overloaded: Option<Reason>) -> Option<Reason> {
+    overloaded.filter(|_| exit_on)
+}
+
 /// The record's age by our own clock; a record "from the future" is as old as zero.
 fn age_of(ts_micros: u64, wall_us: u64) -> Duration {
     Duration::from_micros(wall_us.saturating_sub(ts_micros))
@@ -126,10 +131,10 @@ pub async fn run_exit_load_announce(
     let mut announcer = Announcer::default();
     loop {
         let tick = Tick::now();
-        let want = exit_on
-            .load(Ordering::Relaxed)
-            .then(|| limits.overloaded(tick.mono))
-            .flatten();
+        let want = wanted(
+            exit_on.load(Ordering::Relaxed),
+            limits.overloaded(tick.mono),
+        );
         if let Err(e) = announcer.step(r.as_ref(), want, tick).await {
             say("exit", format!("overload record not written: {e:#}"));
         }

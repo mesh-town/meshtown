@@ -52,6 +52,22 @@ fn parse_rejects_garbage_without_panic() {
     }
 }
 
+#[test]
+fn parse_boundaries_of_format() {
+    // given: values on the edges of the format
+    let mut full = b"share ".to_vec();
+    full.extend([b'x'; 58]);
+    let word16 = [b'a'; 16];
+    let mut word16_tail = word16.to_vec();
+    word16_tail.extend(b" tail");
+    // when / then: non-ASCII tail is garbage; exactly 64 bytes and a 16-byte word are fine
+    assert_eq!(parse(b"limit \xff"), None);
+    assert_eq!(full.len(), 64);
+    assert_eq!(parse(&full), Some(Cause::Known(Reason::Share)));
+    assert_eq!(parse(&word16), Some(Cause::Other));
+    assert_eq!(parse(&word16_tail), Some(Cause::Other));
+}
+
 #[tokio::test]
 async fn read_returns_live_readable_records_with_time() {
     // given: A has a live record, B a tombstone, C garbage, D a record under a longer key

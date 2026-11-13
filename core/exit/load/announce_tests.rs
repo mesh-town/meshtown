@@ -214,6 +214,14 @@ async fn exit_flag_readers_do_not_see_the_new_key() {
 }
 
 #[test]
+fn exit_off_wants_no_record() {
+    // given / when / then: overloaded with the exit off wants nothing; on, it wants the reason
+    assert_eq!(wanted(false, Some(Reason::Limit)), None);
+    assert_eq!(wanted(true, Some(Reason::Limit)), Some(Reason::Limit));
+    assert_eq!(wanted(true, None), None);
+}
+
+#[test]
 fn plan_follows_the_table() {
     // given / when / then: the five rows
     let s = Some(Reason::Share);
