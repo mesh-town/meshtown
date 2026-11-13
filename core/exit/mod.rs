@@ -29,6 +29,7 @@ mod limits;
 pub(crate) mod load;
 mod outbound;
 mod pool;
+mod pool_busy;
 mod report;
 mod server;
 mod splice;
@@ -52,6 +53,7 @@ pub use gateway_memo::{GatewayMemo, GATEWAY_REFUSAL_TTL};
 pub(crate) use limits::rss_ceiling_kib;
 pub use limits::ExitLimits;
 pub(crate) use limits::KeyedLineRate;
+pub(crate) use load::Answer;
 pub use udpgw::{is_gateway_target, UDPGW_HOST, UDPGW_PORT};
 // Consumed by the node-side UDP bridge.
 pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOUT};

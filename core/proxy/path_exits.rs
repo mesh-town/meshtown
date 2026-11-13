@@ -1,7 +1,7 @@
 //! Opening a stream through one of the chosen exits: the candidate loop shared by TCP connections and the UDP gateway.
 //! A child of `path`: it reuses the refusal type and `exit_refusal`.
 
-use crate::exit::{self, PeerConnPool};
+use crate::exit::{self, Answer, PeerConnPool};
 use crate::node::output::{say, short_peer_id};
 use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
@@ -80,8 +80,14 @@ async fn try_exit(
         return Attempt::Next;
     }
     let (send, recv, code) = match ask(cfg, peer, (target_text, port, gateway)).await {
-        Ok(answer) => answer,
+        Ok(answer) => {
+            note_answer(&cfg.pool, peer, Answer::Replied);
+            answer
+        }
         Err(e) => {
+            if e.downcast_ref::<exit::ExitBusy>().is_some() {
+                note_answer(&cfg.pool, peer, Answer::Busy);
+            }
             misses.busy |= is_busy(&e);
             misses.unanswered = true;
             note_failed_attempt(&cfg.pool, &peer, &e);
@@ -106,6 +112,12 @@ async fn try_exit(
     }
     misses.no_gateway = Some(OpenRefused::no_gateway(outcome));
     Attempt::Next
+}
+
+/// The client's own count: an exit that answered (any code) or said "busy" took the attempt; a stream
+/// deadline or a link error is another phenomenon and is not counted.
+fn note_answer(pool: &PeerConnPool, peer: PeerId, answer: Answer) {
+    pool.note_answer(peer, answer, std::time::Instant::now());
 }
 
 /// Asks `peer` for a stream to the target: the UDP gateway target rides a shared stream of the exit, any

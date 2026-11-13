@@ -6,7 +6,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::limits::LineRate;
+use super::load::Answer;
+use super::pool_busy::PoolBusy;
 use crate::transport::net::{BoxRecv, BoxSend, NetStack, PeerConn, PeerId, ServiceId, StreamPair};
 use anyhow::{anyhow, bail, Result};
 use tokio::sync::{Mutex as AsyncMutex, OnceCell};
@@ -71,8 +72,8 @@ pub struct PeerConnPool {
     traffic: Option<ExitTraffic>,
     /// Exits that refused the UDP gateway target.
     gateway: GatewayMemo,
-    /// Paces the client's "exit is busy" log lines.
-    busy_lines: Arc<LineRate>,
+    /// The client's "exit is busy" log lines and the count of refusals per exit.
+    busy: PoolBusy,
     /// Shared UDP gateway streams to the exits.
     pub(in crate::exit) udpgw: super::udpgw::UdpgwMux,
 }
@@ -111,14 +112,26 @@ impl PeerConnPool {
             connect_wait: CONNECT_WAIT,
             traffic: None,
             gateway: GatewayMemo::default(),
-            busy_lines: Arc::default(),
+            busy: PoolBusy::new(),
             udpgw: super::udpgw::UdpgwMux::default(),
         }
     }
 
     /// `Some(busy replies held back since the last line)` when a "busy" log line is due, else `None`.
     pub(crate) fn busy_line_due(&self, now: std::time::Instant) -> Option<u64> {
-        self.busy_lines.due(now)
+        self.busy.line_due(now)
+    }
+
+    /// Notes that `peer` answered a request (`Replied`, any code) or said "busy" (`Busy`).
+    pub(crate) fn note_answer(&self, peer: PeerId, answer: Answer, now: std::time::Instant) {
+        self.busy.record(peer, answer, now);
+    }
+
+    /// `Some((refused, attempts))` of the last two minutes while `peer` refuses us, else `None`.
+    // The reader (the state snapshot) comes in a later step.
+    #[allow(dead_code)]
+    pub(crate) fn exit_busy(&self, peer: PeerId, now: std::time::Instant) -> Option<(u64, u64)> {
+        self.busy.refusing(peer, now)
     }
 
     /// Whether `peer` refused the UDP gateway target recently (then it is not asked again for a while).
