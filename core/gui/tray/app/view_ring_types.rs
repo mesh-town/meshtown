@@ -10,6 +10,10 @@
 pub enum RingRole {
     /// The selected exit is unavailable (`route.state == unavailable`).
     ExitDown,
+    /// The exit our sites go through says it is overloaded (`route.exits[].busy`): an orange sector.
+    ActiveExitBusy,
+    /// The overloaded exit reached through another member (`path == "relay"`): orange, dashed.
+    ExitViaRelayBusy,
     /// The exit our sites go through.
     ActiveExit,
     /// The exit our sites go through, reached through another member (`path == "relay"`): the
@@ -26,6 +30,8 @@ pub enum RingRole {
 /// All roles in the order of the variants.
 pub(super) const RING_ROLES: [RingRole; RING_ROLE_COUNT] = [
     RingRole::ExitDown,
+    RingRole::ActiveExitBusy,
+    RingRole::ExitViaRelayBusy,
     RingRole::ActiveExit,
     RingRole::ExitViaRelay,
     RingRole::ExitClient,
@@ -34,13 +40,15 @@ pub(super) const RING_ROLES: [RingRole; RING_ROLE_COUNT] = [
 ];
 
 /// The number of roles — the length of `RING_ROLES` and `Ring::counts`.
-pub(super) const RING_ROLE_COUNT: usize = 6;
+pub(super) const RING_ROLE_COUNT: usize = 8;
 
 /// The sector color of a role — the only `match` on `RingRole` in the code.
 pub(super) fn role_rgb(role: RingRole) -> [u8; 3] {
     match role {
         // The same red as the solid icon `TrayColor::Red` (`view_icon.rs`).
         RingRole::ExitDown => [225, 60, 50],
+        // Orange: an overloaded exit; red `ExitDown` differs in hue, the amber alert disc by place and shape.
+        RingRole::ActiveExitBusy | RingRole::ExitViaRelayBusy => [255, 140, 0],
         // Light blue: on a dark menu row the contrast is about 6:1 (it was about 3.6:1), on a light one about 2:1 — no paler than
         // the green neighbour (1.8:1); from violet ΔE is about 38.
         RingRole::ActiveExit | RingRole::ExitViaRelay => [90, 170, 255],
@@ -53,7 +61,7 @@ pub(super) fn role_rgb(role: RingRole) -> [u8; 3] {
 impl RingRole {
     /// The sector is drawn as a dashed line (the path goes through another member).
     pub(super) fn is_dashed(self) -> bool {
-        self == RingRole::ExitViaRelay
+        matches!(self, RingRole::ExitViaRelay | RingRole::ExitViaRelayBusy)
     }
 }
 
@@ -62,19 +70,32 @@ impl RingRole {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ring {
     pub(super) counts: [u16; RING_ROLE_COUNT],
+    /// This computer is an overloaded exit (any visible network): the icon gets a yellow dot over the ring.
+    pub(super) badge: bool,
 }
 
 impl Ring {
     /// An empty ring: the icon stays solid.
     pub const EMPTY: Ring = Ring {
         counts: [0; RING_ROLE_COUNT],
+        badge: false,
     };
 
     /// A ring with one more member in role `role`; the counter saturates at `u16::MAX`.
     pub fn add(self, role: RingRole) -> Ring {
         let mut counts = self.counts;
         counts[role as usize] = counts[role as usize].saturating_add(1);
-        Ring { counts }
+        Ring { counts, ..self }
+    }
+
+    /// The same ring with the own-overload dot on or off.
+    pub fn with_badge(self, badge: bool) -> Ring {
+        Ring { badge, ..self }
+    }
+
+    /// Whether the own-overload dot is wanted.
+    pub fn badge(&self) -> bool {
+        self.badge
     }
 
     /// How many members are in the role.

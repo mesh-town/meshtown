@@ -74,7 +74,7 @@ fn peer_not_object_is_default_peer() {
 #[test]
 fn peer_exit_null_is_false() {
     let s = snap(json!({"peers": [{"exit": null}]}));
-    assert!(!s.peers.expect("peers")[0].exit);
+    assert!(!s.peers.as_ref().expect("peers")[0].exit);
 }
 
 #[test]
@@ -131,14 +131,14 @@ fn wrong_type_numbers_and_ids() {
 #[test]
 fn rates_missing_are_none() {
     let s = snap(json!({"peers": [{"id": "a"}]}));
-    let peer = &s.peers.expect("peers")[0];
+    let peer = &s.peers.as_ref().expect("peers")[0];
     assert_eq!((peer.through_peer_bps, peer.through_us_bps), (None, None));
 }
 
 #[test]
 fn rates_of_wrong_type_are_none() {
     let s = snap(json!({"peers": [{"through_peer_bps": "abc", "through_us_bps": "abc"}]}));
-    let peer = &s.peers.expect("peers")[0];
+    let peer = &s.peers.as_ref().expect("peers")[0];
     assert_eq!((peer.through_peer_bps, peer.through_us_bps), (None, None));
 }
 
@@ -183,4 +183,17 @@ fn relay_serving_is_read_and_defaults_to_false() {
     ] {
         assert!(!snap(body).transport.relay.serving);
     }
+}
+
+#[test]
+fn snapshot_without_new_keys_reads_as_not_busy() {
+    let s = snap(json!({
+        "route": {"state": "exit", "exits": [{"id_full": "e1", "active": true}]},
+        "peers": [{"id_full": "e1"}],
+        "exit": {"enabled": true, "load": null},
+    }));
+    assert!(!s.route.exits[0].busy);
+    assert_eq!(s.peers.as_ref().expect("peers")[0].overloaded, None);
+    assert!(!s.own_exit_overloaded());
+    assert!(snap(json!({"exit": {"load": {"overloaded": "limit"}}})).own_exit_overloaded());
 }

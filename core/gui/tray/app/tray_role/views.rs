@@ -99,7 +99,16 @@ fn views_from_overview(all: &[SlotView], tray_proxy_plan: &ProxyState) -> (ExitM
     if vis.len() >= 2 {
         nest(&mut menu, &vis, main);
     }
-    (menu, snapshot_view_nets(&snap, any_online))
+    let mut view = snapshot_view_nets(&snap, any_online);
+    view.ring = view.ring.with_badge(own_overload(&vis));
+    (menu, view)
+}
+
+/// This computer's exit is overloaded in any visible network (the load is one per process, but the exit may be on
+/// only in a network that does not carry the proxy).
+fn own_overload(vis: &[SlotView]) -> bool {
+    let overloaded = |s: &SlotView| TraySnapshot::from_value(&s.state).own_exit_overloaded();
+    vis.iter().any(overloaded)
 }
 
 /// The state shown when no network is visible: the first slot that has a state (the host lists the main slot first).

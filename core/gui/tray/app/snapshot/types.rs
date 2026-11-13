@@ -116,6 +116,10 @@ pub struct TrayChosenExit {
     pub online: bool,
     #[serde(deserialize_with = "lenient::bool_or_false")]
     pub active: bool,
+    /// `route.exits[].busy`: the exit says it is overloaded or turns this node's connections away; a node
+    /// that does not send the key gives `false`.
+    #[serde(deserialize_with = "lenient::bool_or_false")]
+    pub busy: bool,
 }
 
 /// A member from `peers`.
@@ -145,6 +149,9 @@ pub struct TrayPeer {
     /// The path to the peer: `"direct"` or `"relay"`; a missing or unknown key gives `None`.
     #[serde(deserialize_with = "lenient::opt_string")]
     pub path: Option<String>,
+    /// `peers[].overloaded`: the reason the member's exit says it is overloaded; a missing key gives `None`.
+    #[serde(deserialize_with = "lenient::opt_string")]
+    pub overloaded: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
@@ -154,6 +161,25 @@ pub struct TrayOwnExit {
     pub enabled: bool,
     #[serde(deserialize_with = "lenient::strings")]
     pub clients: Vec<String>,
+    /// `exit.load`: `null` (a missing key too) while the exit is off.
+    #[serde(deserialize_with = "lenient::object_or_default")]
+    pub load: TrayExitLoad,
+}
+
+/// The `exit.load` object: only the overload reason is read.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(default)]
+pub struct TrayExitLoad {
+    /// `exit.load.overloaded`: the reason while this exit is overloaded, else `None`.
+    #[serde(deserialize_with = "lenient::opt_string")]
+    pub overloaded: Option<String>,
+}
+
+impl TraySnapshot {
+    /// This computer's exit is overloaded (`exit.load.overloaded` is set).
+    pub fn own_exit_overloaded(&self) -> bool {
+        self.exit.load.overloaded.is_some()
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]

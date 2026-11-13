@@ -253,6 +253,7 @@ fn solid() -> IconPicture {
         ring: None,
         disk: None,
         alert: false,
+        badge: false,
         lit: None,
     }
 }

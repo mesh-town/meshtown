@@ -1,7 +1,7 @@
 //! Example: draws the tray icon with this branch's real drawing code and writes a PNG to look at
 //! by eye, without a menu bar.
 //!
-//! What it does: for 14 ring compositions (the last two: a grey ring of 8 with sector 0 and 3 lit) calls `ring_rgba_lit` (the same raster the tray sets) at 36 px
+//! What it does: for 18 ring compositions (the last two: a grey ring of 8 with sector 0 and 3 lit) calls `ring_rgba_lit` (the same raster the tray sets) at 36 px
 //! and 22 px, writes each icon and its enlargement to a 256×256 slot with nearest neighbor (an integer
 //! factor: 7× for 36 px, 11× for 22 px, centered on a transparent canvas), then two contact sheets:
 //! `sheet-light.png` and `sheet-dark.png` (a light and a dark menu bar). All PNGs are transparent,
@@ -18,7 +18,8 @@
 //! online; 06, 07 — 16 and 17 online (no gaps from 17 on); 08 — six, two offline;
 //! 09 — six with all roles (exit, two exit via us, two online, one gray);
 //! 10 — six offline; 11 — one member; 12 — zero (the ring is empty, the raster is transparent;
-//! in production the icon for zero is solid: `ring_to_draw` returns `None`).
+//! in production the icon for zero is solid: `ring_to_draw` returns `None`). Cases "exit-busy", "exit-busy-relay",
+//! "own-overload-dot" and "exit-busy-and-dot" follow the relay ones.
 
 mod image;
 mod png;
@@ -29,6 +30,7 @@ mod app;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
+use app::view_badge::paint_badge;
 use app::view_ring_paint::ring_rgba_lit;
 use app::view_ring_types::{Ring, RingRole};
 use image::Image;
@@ -94,6 +96,36 @@ fn relay_cases() -> Vec<Case> {
     .collect()
 }
 
+/// Overload: the orange sector of a busy exit (solid and dashed), the yellow dot of an own overloaded exit, both.
+fn busy_cases() -> Vec<Case> {
+    let tail = [
+        (RingRole::ExitClient, 1),
+        (RingRole::Online, 3),
+        (RingRole::Offline, 1),
+    ];
+    let with = |first: RingRole| {
+        let head = ring_of(&[(first, 1)]);
+        tail.iter()
+            .fold(head, |r, &(role, n)| (0..n).fold(r, |r, _| r.add(role)))
+    };
+    [
+        ("exit-busy", with(RingRole::ActiveExitBusy)),
+        ("exit-busy-relay", with(RingRole::ExitViaRelayBusy)),
+        ("own-overload-dot", with(RingRole::Online).with_badge(true)),
+        (
+            "exit-busy-and-dot",
+            with(RingRole::ActiveExitBusy).with_badge(true),
+        ),
+    ]
+    .into_iter()
+    .map(|(slug, ring)| Case {
+        slug,
+        ring,
+        lit: None,
+    })
+    .collect()
+}
+
 /// All cases in sheet order.
 fn cases() -> Vec<Case> {
     let mut all: Vec<Case> = [2, 3, 5, 8, 9, 16, 17].into_iter().map(online).collect();
@@ -113,6 +145,7 @@ fn cases() -> Vec<Case> {
         lit: None,
     });
     all.extend(relay_cases());
+    all.extend(busy_cases());
     all.push(Case {
         slug: "six-all-grey",
         ring: ring_of(&[(RingRole::Offline, 6)]),
@@ -147,7 +180,11 @@ fn write_case(dir: &Path, index: usize, case: &Case) -> io::Result<Entry> {
     let mut small = Vec::new();
     let mut zoomed = Vec::new();
     for side in SIDES {
-        let raw = Image::square(side, ring_rgba_lit(&case.ring, case.lit, side));
+        let mut rgba = ring_rgba_lit(&case.ring, case.lit, side);
+        if case.ring.badge() {
+            paint_badge(&mut rgba, side);
+        }
+        let raw = Image::square(side, rgba);
         let big = raw.scaled(SLOT / side).centered(SLOT);
         let stem = format!("{:02}-{}-{side}", index + 1, case.slug);
         write_png(dir, &stem, &raw)?;
