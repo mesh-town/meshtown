@@ -35,3 +35,19 @@ fn set_aside_main_moves_every_peers_cache_file() {
     assert_eq!(names_in(&root), ["config.json", "nets"]);
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn set_aside_main_moves_kept_invites() {
+    // given: the kept invite strings of the old network beside the main file
+    let root = scratch("aside-kept");
+    let main = root.join(FILE_NAME);
+    let text = render_config_file(1, NOW, &test_secret(), &sample_settings());
+    std::fs::write(&main, text).expect("main file");
+    std::fs::write(root.join("kept-invites.json"), "{}").expect("kept file");
+    // when
+    let target = set_aside_main(&main, NOW).expect("set aside");
+    // then: they went with the old network
+    assert!(names_in(&target).contains(&"kept-invites.json".to_string()));
+    assert_eq!(names_in(&root), ["config.json", "nets"]);
+    let _ = std::fs::remove_dir_all(&root);
+}

@@ -19,6 +19,7 @@ mod closed_feed;
 mod control;
 mod control_domains;
 mod control_invites;
+mod control_invites_text;
 mod control_members;
 mod control_node;
 mod gates;

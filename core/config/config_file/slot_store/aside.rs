@@ -9,7 +9,12 @@ use crate::config::config_file::{stamp_utc, FILE_NAME};
 use crate::transport::peers_cache::PEERS_CACHE_NAME_PREFIX;
 
 /// Caches that sit beside the main file and move with it.
-const MAIN_CACHES: [&str; 3] = ["peer-names.json", "docs-store", "replica"];
+const MAIN_CACHES: [&str; 4] = [
+    "peer-names.json",
+    "docs-store",
+    "replica",
+    "kept-invites.json",
+];
 
 /// `peers-cache.json` and the per-network `peers-cache-<id>.json`.
 fn is_peers_cache(name: &str) -> bool {

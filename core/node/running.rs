@@ -93,6 +93,8 @@ pub struct RunningNode {
     pub doc_changes: Arc<crate::node::DocChanges>,
     /// The opener of others' ports: listeners on `127.0.0.1:<local>`.
     pub opener: Opener,
+    /// File of the invite strings this node made; `None` — they are not kept.
+    pub kept_invites_path: Option<std::path::PathBuf>,
     /// The membership list: verdicts, member actions and the watcher's state.
     pub access: Arc<crate::members::access::runtime::Access>,
     /// Handles of background tasks started in `start_node()` (except those spawned by

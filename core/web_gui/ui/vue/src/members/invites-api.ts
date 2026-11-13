@@ -1,4 +1,4 @@
-/* Client of `GET network/invites` and `POST network/invites/label`: the open invites of a managed network. */
+/* Client of `GET network/invites`, `POST network/invites/label` and `POST network/invites/text`: the open invites of a managed network. */
 
 import type { ApiFn } from "../core/api.ts";
 import { slotPath } from "../core/slots.ts";
@@ -12,6 +12,8 @@ export interface OpenInvite {
   issuer: string | null;
   issuer_name: string | null;
   mine: boolean;
+  // The invite string is kept on this node, so it can be copied or shown as a QR code again.
+  kept: boolean;
 }
 
 type Raw = Record<string, unknown>;
@@ -30,6 +32,7 @@ function parseInvite(v: unknown): OpenInvite | null {
     issuer: text(v.issuer),
     issuer_name: text(v.issuer_name),
     mine: v.mine === true,
+    kept: v.kept === true,
   };
 }
 
@@ -48,10 +51,22 @@ export async function relabelInvite(api: ApiFn, slot: string, hash: string, labe
   return parseInvites(await api("POST", slotPath(slot, "network/invites/label"), { hash, for: label }));
 }
 
+export interface InviteText {
+  invite: string;
+  qr: string | null;
+}
+
+// The kept string of an own open invite; it is a secret: the caller uses it at once and does not store it.
+export async function getInviteText(api: ApiFn, slot: string, hash: string): Promise<InviteText | null> {
+  const raw = await api("POST", slotPath(slot, "network/invites/text"), { hash });
+  if (!isObj(raw) || typeof raw.invite !== "string") return null;
+  return { invite: raw.invite, qr: typeof raw.qr === "string" ? raw.qr : null };
+}
+
 const SENTENCES: Record<string, string> = {
   not_issuer: "Only the admin who made this invite can rename it.",
   not_admin: "Only admins can do this.",
-  not_found: "This invite has been used or has expired.",
+  not_found: "This invite has been used or has expired, or can no longer be shown.",
   invalid: "That label is not valid.",
   busy: "The network is starting, try again in a moment.",
 };

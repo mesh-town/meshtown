@@ -1,5 +1,6 @@
 //! Open invites of a network: the list and the edit of an invite's "for whom" note (admins only; the node decides).
-//! Routes: `GET {base}/network/invites`, `POST {base}/network/invites/label` with `{"hash", "for"}`.
+//! Routes: `GET {base}/network/invites`, `POST {base}/network/invites/label` with `{"hash", "for"}`,
+//! `POST {base}/network/invites/text` with `{"hash"}` (the kept strings of an own open invite).
 
 use std::sync::Arc;
 
@@ -14,6 +15,7 @@ use super::helpers::{action_error, bad_method, body_obj};
 use super::peers::check_label;
 use super::slot_param::SlotParam;
 use crate::web_gui::http::json_err;
+use crate::web_gui::invite_qr;
 use crate::web_gui::{App, InvitesReply, MemberError};
 
 /// Length of the invite hash in hex characters.
@@ -29,16 +31,43 @@ pub(super) fn register_invites(router: Router<Arc<App>>, base: &str) -> Router<A
             &format!("{base}/network/invites/label"),
             post(label_handler).fallback(bad_method),
         )
+        .route(
+            &format!("{base}/network/invites/text"),
+            post(text_handler).fallback(bad_method),
+        )
 }
 
 /// The reply of the list or of the edit; a refusal is 409 with its code.
 fn reply(result: Result<InvitesReply, MemberError>) -> Response {
     match result {
         Ok(body) => (StatusCode::OK, axum::Json(body)).into_response(),
-        Err(MemberError::Action(e)) => action_error(e),
-        Err(MemberError::Refused { code, message }) => {
-            json_err(StatusCode::CONFLICT, code, &message)
+        Err(e) => refusal(e),
+    }
+}
+
+fn refusal(e: MemberError) -> Response {
+    match e {
+        MemberError::Action(e) => action_error(e),
+        MemberError::Refused { code, message } => json_err(StatusCode::CONFLICT, code, &message),
+    }
+}
+
+/// The strings of one open invite: the full one and the QR picture drawn from the short one. The only place
+/// the secret leaves the node besides the invite route itself; never logged.
+async fn text_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    let Ok(map) = body_obj(&bytes) else {
+        return bad_request("body must be a JSON object");
+    };
+    let hash = match hash_of(&map) {
+        Ok(h) => h,
+        Err(resp) => return resp,
+    };
+    match slot.node.invite_text(hash).await {
+        Ok(t) => {
+            let body = invite_qr::with_qr(serde_json::json!({"invite": t.text}), &t.qr_text);
+            (StatusCode::OK, axum::Json(body)).into_response()
         }
+        Err(e) => refusal(e),
     }
 }
 
