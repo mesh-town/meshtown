@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.Build;
@@ -24,6 +25,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class UpdateInstaller {
     static final String EXTRA_UPDATE_NOW = "app.meshtown.extra.UPDATE_NOW";
     static final AtomicBoolean busy = new AtomicBoolean(false);
+    private static final String PREFS = "update_resume";
+    private static final String KEY_URL = "url";
+    private static final String KEY_AT = "saved_at";
     private static final long LIMIT = 100L * 1024 * 1024;
 
     private UpdateInstaller() {}
@@ -37,7 +41,7 @@ final class UpdateInstaller {
 
     static void start(Activity a, String url) {
         if (!a.getPackageManager().canRequestPackageInstalls()) {
-            askPermission(a);
+            askPermission(a, url);
             return;
         }
         if (!busy.compareAndSet(false, true)) {
@@ -49,10 +53,24 @@ final class UpdateInstaller {
         new Thread(() -> run(app, url), "update-download").start();
     }
 
-    private static void askPermission(Activity a) {
-        toast(a, "Allow installs from Mesh Town, then tap Download again.");
+    private static void askPermission(Activity a, String url) {
+        a.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString(KEY_URL, url).putLong(KEY_AT, System.currentTimeMillis()).apply();
+        toast(a, "Allow installs from Mesh Town; the download starts when you come back.");
         a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                 Uri.parse("package:" + a.getPackageName())));
+    }
+
+    /** Continues a download that was waiting for the install permission; the saved request is always cleared. */
+    static void resumeIfPending(Activity a) {
+        SharedPreferences p = a.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String url = p.getString(KEY_URL, null);
+        long savedAt = p.getLong(KEY_AT, 0);
+        p.edit().remove(KEY_URL).remove(KEY_AT).apply();
+        boolean granted = a.getPackageManager().canRequestPackageInstalls();
+        if (UpdateResume.shouldStart(url, savedAt, System.currentTimeMillis(), granted)) {
+            start(a, url);
+        }
     }
 
     private static void run(Context ctx, String url) {
