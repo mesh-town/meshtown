@@ -16,6 +16,7 @@ import { getPath } from "../settings/settings-fields.ts";
 import { MENU_DELETE_NETWORK } from "../members/members-managed-texts.ts";
 import { canDeleteNet } from "../members/managed-ctx.ts";
 import ExitIfaceField from "./ExitIfaceField.vue";
+import ExitLoadField from "./ExitLoadField.vue";
 import { PEERS_NO_STORE } from "./peers-texts.ts";
 import { YOU_LEAVE_BTN, YOU_NAME_PLACEHOLDER, youExitLabel, youExitOff, youLeaveHint, youNameHint, youNameLabel, youSameName, youTitle } from "./you-texts.ts";
 
@@ -93,6 +94,7 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <p class="setting-desc cli-note" id="you-exit-cli-note" :hidden="!exitAccess.cliNote">{{ exitAccess.cliNote }}</p>
     <p class="field-status" :class="exitStatus.cls" id="you-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
     <ExitIfaceField v-if="exitOn" :slot="slot" />
+    <ExitLoadField v-if="exitOn" :slot="slot" />
     </template>
     <p class="hint you-leave-hint">{{ youLeaveHint(net) }}</p>
     <div class="btn-row">
