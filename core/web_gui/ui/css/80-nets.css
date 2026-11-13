@@ -72,6 +72,10 @@
 #you-block .field-label:not(:first-of-type){margin-top:14px;}
 #you-block .toggle-inline{margin-top:14px;}
 #you-block .home-exit-toggle{display:flex;}
+/* The exit load block: a gap above the turned-away table and the limit field, the warning as a padded strip. */
+#exit-load-table,#exit-load label.field-label{margin-top:14px;}
+#exit-load .exit-load-row{margin-top:4px;}
+#exit-load .exit-load-warning{padding:6px 8px;border-radius:6px;}
 .you-leave-hint{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
 /* "Delete network for everyone": filled red, so it stands apart from "Leave network". */
 #you-delete-net-btn,#you-delete-net-btn:hover{background:var(--red);border-color:var(--red);color:var(--bg-elev);}
