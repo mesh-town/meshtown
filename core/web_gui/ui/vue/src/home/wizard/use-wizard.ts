@@ -95,7 +95,7 @@ export function useWizard(store: Store): WizardView {
     commitAnswers(before, after);
     form.wizard = { at: after.at, skipped: after.skipped, visited: after.visited };
     const mark = from === step.value ? null : markOnEnter(step.value);
-    if (mark) h.setMark(mark);
+    if (mark) h.setMark(mark, true);
     if (ev.kind === "toSystem") focusSoon("os");
   };
 
@@ -115,7 +115,7 @@ export function useWizard(store: Store): WizardView {
     pickBrowser: (value) => dispatch({ kind: "browser", value }),
     goNext: () => dispatch({ kind: "next" }),
     goBack: () => dispatch({ kind: "back" }),
-    skip: () => dispatch({ kind: "skip" }),
+    skip: () => { dispatch({ kind: "skip" }); h.setMark("done"); },
     toSystem: () => dispatch({ kind: "toSystem" }),
     finish: () => h.setMark("done"),
   };

@@ -19,14 +19,14 @@ describe("homeMode and wizardStep", () => {
   });
 
   describe("there is a network", () => {
-    it("mark \"browser\" — setup, step 2", () => {
-      assert.equal(homeMode(snap(), "browser"), "wizard");
-      assert.equal(wizardStep(snap(), "browser"), 2);
+    it("mark \"exit\" — setup, step 2", () => {
+      assert.equal(homeMode(snap(), "exit"), "wizard");
+      assert.equal(wizardStep(snap(), "exit"), 2);
     });
 
-    it("mark \"exit\" — setup, step 3", () => {
-      assert.equal(homeMode(snap(), "exit"), "wizard");
-      assert.equal(wizardStep(snap(), "exit"), 3);
+    it("mark \"browser\" — setup, step 3", () => {
+      assert.equal(homeMode(snap(), "browser"), "wizard");
+      assert.equal(wizardStep(snap(), "browser"), 3);
     });
 
     it("mark \"done\" — the normal view", () => assert.equal(homeMode(snap(), "done"), "normal"));

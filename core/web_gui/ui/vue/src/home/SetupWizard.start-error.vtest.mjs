@@ -43,7 +43,7 @@ describe("SetupWizard > failed start", () => {
   });
 
   it("without a start error the screen is there and the joined line is not the failed one", () => {
-    const { wrapper } = mount({ mark: "browser" });
+    const { wrapper } = mount({ mark: "exit" });
     expect(wrapper.find("#wizard-screen").exists()).toBe(true);
     expect(wrapper.find(".wizard-step.failed").exists()).toBe(false);
     expect(wrapper.get("#wizard-joined").text()).toContain(HOME_WIZARD_JOINED);

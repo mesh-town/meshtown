@@ -93,7 +93,8 @@ function answer(s: WizardState, env: WizardEnv, row: StepId, patch: Partial<Wiza
 // A row of the questions page: from another screen the page opens at its last row.
 function toRow(s: WizardState, env: WizardEnv, id: StepId): WizardState {
   const ctx = ctxOf(s, env);
-  const lastRow = prevStep(ctx, "exit");
+  const rows = wizardPath(ctx).filter((id) => screenOf(id) === "choices");
+  const lastRow = ctx.scope === null && !ctx.router && ctx.proxyOn ? rows[0] ?? null : rows.pop() ?? null;
   if (screenOf(s.at) !== "choices" && lastRow !== null) return { ...s, at: lastRow };
   return visibleRows(ctx, s.at).includes(id) ? s : { ...s, at: id };
 }
@@ -115,7 +116,7 @@ export function applyEvent(state: WizardState, env: WizardEnv, ev: WizardEvent):
     case "next": return advance(s, env);
     case "back": return { ...s, at: prevStep(ctxOf(s, env), s.at) ?? s.at };
     case "strip": return toStrip(s, env, ev.id);
-    case "skip": return { ...s, skipped: true, at: "exit" };
+    case "skip": return { ...s, skipped: true };
     case "toSystem": return { ...s, scope: "system", skipped: false };
   }
 }

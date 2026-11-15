@@ -19,14 +19,14 @@ for (const theme of ['dark', 'light'] as const) {
       await page.mouse.move(0, 0);
       failures.push(...(await contrastFailures(page, root, where, theme)));
     };
-    await wizard.open();
+    await wizard.openQuestions();
 
     await test.step('scope row alone: the tiles and the skip link', async () => {
       await wizard.expectCursor('scope');
       await measure(WIZARD, 'scope row');
     });
 
-    await test.step('questions page: the answered rows (quieter headings, tiles pressed) and the Next button', async () => {
+    await test.step('questions page: the answered rows (quieter headings, tiles pressed) and the Finish button', async () => {
       await wizard.tile('scope-system').click();
       await wizard.expectCursor('guide');
       await measure(WIZARD, 'questions page');
@@ -43,7 +43,7 @@ for (const theme of ['dark', 'light'] as const) {
     });
 
     await test.step('exit screen', async () => {
-      await wizard.next();
+      await wizard.strip.locator('#wizard-strip-exit').click();
       await wizard.expectScreen('exit');
       await measure(WIZARD, 'exit screen');
     });
@@ -62,7 +62,7 @@ for (const theme of ['dark', 'light'] as const) {
 test('82-contrast: scope buttons differ by fill', async ({ app, page, targetKind }) => {
   test.skip(targetKind === 'node', 'the demo is enough');
   const wizard = app.wizard;
-  await wizard.open();
+  await wizard.openQuestions();
   await wizard.tile('scope-system').click();
   await wizard.expectCursor('guide');
   const fill = (id: string): Promise<string> => page.locator(id).evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -73,7 +73,7 @@ test('82-contrast: scope buttons differ by fill', async ({ app, page, targetKind
 test('83-contrast: scope, system and browser segments are separate buttons at least 36px tall', async ({ app, page, targetKind }) => {
   test.skip(targetKind === 'node', 'the demo is enough');
   const wizard = app.wizard;
-  await wizard.open();
+  await wizard.openQuestions();
   const none = async (): Promise<void> => {};
   const toBrowserRow = async (): Promise<void> => { await wizard.tile('scope-browser').click(); };
   const screens = [

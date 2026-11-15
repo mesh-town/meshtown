@@ -29,12 +29,12 @@ describe("SetupWizard > an invite that waits", () => {
     expect(wrapper.find(".join-progress, #join-wait, #join-status").exists(), "the wait is shown").toBe(true);
   });
 
-  it("the network comes in: the wizard moves to the scope question", async () => {
+  it("the network comes in: the wizard moves to the exit screen", async () => {
     const { wrapper, store } = await joinWaiting();
     store.state = joinedState();
     await flushPromises();
     expect(wrapper.find("#home-start-choice").exists()).toBe(false);
-    expect(cursor(wrapper)).toBe("scope");
+    expect(cursor(wrapper)).toBe("exit");
   });
 
   it("the invite card is not offered while there is no network", async () => {

@@ -98,6 +98,7 @@ describe("answers survive", () => {
   it("Firefox picked in the one-browser mode is still pressed after Main and back to Setup, on the instruction", async () => {
     mountHome();
     await click("#home-tab-wizard");
+    await click("#wizard-next");
     await click("#scope-browser");
     await click("#browser-firefox");
     expect(pressedTiles(home.wrapper, "browser-seg")).toEqual(["firefox"]);
@@ -111,6 +112,7 @@ describe("answers survive", () => {
   it("the browser picked survives a reload of the page: the same storage, a new section", async () => {
     mountHome();
     await click("#home-tab-wizard");
+    await click("#wizard-next");
     await click("#scope-browser");
     await click("#browser-firefox");
     home.wrapper.unmount();
@@ -123,6 +125,7 @@ describe("answers survive", () => {
   it("the system picked survives a reload as well, the detected one is not written", async () => {
     mountHome();
     await click("#home-tab-wizard");
+    await click("#wizard-next");
     expect(localStorage.getItem("meshtown.proxyOs")).toBeNull();
     await click("#scope-system");
     await click("#os-windows");

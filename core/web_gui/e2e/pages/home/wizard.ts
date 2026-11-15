@@ -26,7 +26,7 @@ const SETUP_MARK_KEY = 'meshtown.homeSetup';
 
 /**
  * The step-by-step setup on Home ("Setup" tab): one page with the questions one under another (the next row opens
- * when the one above is answered), then the exit screen; a progress line, choice tiles and Back / Next / Skip / Finish. The Overview tab next to it is here too, to leave the setup.
+ * when the one above is answered) after the exit screen; a progress line, choice tiles and Back / Next / Skip / Finish. The Overview tab next to it is here too, to leave the setup.
  */
 export class HomeWizard {
   readonly region: Locator;
@@ -82,6 +82,17 @@ export class HomeWizard {
     await this.setupTab.click();
   }
 
+  /**
+   * Opens the "Setup" tab and goes past the exit screen (the first step after joining) to the questions page.
+   * With a setup mark that is already past the exit step the questions page is open at once.
+   */
+  async openQuestions(): Promise<void> {
+    await this.setupTab.click();
+    await this.expectScreen('exit');
+    await this.next();
+    await this.expectScreen('choices');
+  }
+
   /** Opens the "Overview" tab. */
   async openOverview(): Promise<void> {
     await this.overviewTab.click();
@@ -105,7 +116,7 @@ export class HomeWizard {
     await this.skipButton.click();
   }
 
-  /** "Finish" on the exit screen: closes the setup and opens Overview. */
+  /** "Finish" on the last step: closes the setup and opens Overview. */
   async finish(): Promise<void> {
     await this.finishButton.click();
   }

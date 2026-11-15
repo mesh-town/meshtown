@@ -67,7 +67,7 @@ export function configFieldAccess(meta: ConfigMeta | null | undefined, path: str
 // no one lets sites through them, otherwise A (the answer to an open question may change this line).
 export const HOME_ORDER: OrderVariant = "V";
 
-const MARK_STEPS = new Map<string | null, number>([["browser", 2], ["exit", 3]]);
+const MARK_STEPS = new Map<string | null, number>([["exit", 2], ["browser", 3]]);
 
 function hasNet(state: Snapshot): boolean {
   return !!(state && state.network);

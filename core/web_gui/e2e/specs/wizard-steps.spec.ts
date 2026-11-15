@@ -1,44 +1,46 @@
 import { test, expect } from '../fixtures/index';
 import { WIZARD_TEXT } from '../pages/home/wizard';
 
-// The step-by-step setup of a node that is already in a network: the questions on one page, then the exit screen.
+// The step-by-step setup of a node that is already in a network: the exit screen first, then the questions on one page.
 // The proxy is on in the demo snapshot; on a real node it depends on startup flags.
 
 test.describe('the setup wizard of a node in a network', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'the proxy is on in the demo node snapshot; on a real node it depends on startup flags');
 
-  test('125-wizard-steps: all apps → instruction opens under the answers → Next → exit → Finish: the progress counts 2, 4, 5 of 5, the instruction shows the address, Finish opens Overview and keeps the done mark', async ({ app, page }) => {
+  test('125-wizard-steps: exit first → Next → all apps → instruction opens under the answers → Finish: the progress counts 2, 3, 5 of 5, the instruction shows the address, Finish opens Overview and keeps the done mark', async ({ app, page }) => {
     const wizard = app.wizard;
 
-    await test.step('given: a node in a network, the Setup tab is open — only the scope question, step 2 of 5', async () => {
+    await test.step('given: a node in a network, the Setup tab is open — the exit screen comes first, step 2 of 5, Next not Finish', async () => {
       await wizard.open();
+      await wizard.expectScreen('exit');
+      await expect.soft(wizard.progress).toHaveText('Step 2 of 5');
+      await expect.soft(wizard.nextButton).toBeVisible();
+      await expect.soft(wizard.finishButton).toHaveCount(0);
+    });
+
+    await test.step('when Next is clicked, then only the scope question is open, step 3 of 5, and the browser mark is kept', async () => {
+      await wizard.next();
       await wizard.expectCursor('scope');
       await expect.soft(wizard.rows).toHaveCount(1);
       await expect.soft(wizard.rowHeading('scope')).toHaveText(WIZARD_TEXT.scopeQuestion);
-      await expect.soft(wizard.progress).toHaveText('Step 2 of 5');
+      await expect.soft(wizard.progress).toHaveText('Step 3 of 5');
+      await expect.poll(() => wizard.setupMark()).toBe('browser');
     });
 
-    await test.step('when "All apps" is chosen, then the system and instruction rows open under it, step 4 of 5', async () => {
+    await test.step('when "All apps" is chosen, then the system and instruction rows open under it, step 5 of 5, the last button is Finish', async () => {
       await wizard.tile('scope-system').click();
       await wizard.expectCursor('guide');
       await expect.soft(wizard.rows).toHaveCount(3);
       await expect.soft(wizard.rowHeading('os')).toHaveText(WIZARD_TEXT.osQuestion);
       await expect.soft(wizard.rows.filter({ has: page.locator('#browser-seg') })).toHaveCount(0);
-      await expect.soft(wizard.progress).toHaveText('Step 4 of 5');
-      await expect.soft(wizard.nextButton).toBeVisible();
+      await expect.soft(wizard.progress).toHaveText('Step 5 of 5');
+      await expect.soft(wizard.finishButton).toBeVisible();
     });
 
     await test.step('when macOS is chosen in the row above, then the instruction stays open and shows the setup address', async () => {
       await wizard.tile('os-mac').click();
       await wizard.expectCursor('guide');
       await expect.soft(app.proxyCard.addressText).toHaveText(/^http:\/\/127\.0\.0\.1:\d+\/proxy\.pac$/);
-    });
-
-    await test.step('when Next is clicked, then the exit screen is the last one, step 5 of 5, and the exit mark is kept', async () => {
-      await wizard.next();
-      await wizard.expectScreen('exit');
-      await expect.soft(wizard.progress).toHaveText('Step 5 of 5');
-      await expect.poll(() => wizard.setupMark()).toBe('exit');
     });
 
     await test.step('when Finish is clicked, then Overview opens and the done mark is kept', async () => {
@@ -54,7 +56,7 @@ test.describe('the setup wizard of a node in a network', () => {
     const wizard = app.wizard;
 
     await test.step('given: the instruction for all apps on macOS in Chrome; the hint is hidden', async () => {
-      await wizard.open();
+      await wizard.openQuestions();
       await wizard.toGuide('system', 'mac');
       await expect.soft(wizard.tooltip).toBeHidden();
     });
@@ -74,20 +76,21 @@ test.describe('the setup wizard of a node in a network', () => {
     });
   });
 
-  test('127-wizard-back: Back on the exit screen returns to the page with the earlier choices pressed; the questions page has no Back', async ({ app }) => {
+  test('127-wizard-back: the strip returns from the questions to the exit screen and Next comes back with the earlier choices pressed; the questions page has no Back', async ({ app }) => {
     const wizard = app.wizard;
 
     await test.step('given: Windows is chosen (not the default of the system in use), the instruction is open; no Back on the page', async () => {
-      await wizard.open();
+      await wizard.openQuestions();
       await expect.soft(wizard.backButton, 'the questions page in a network').toHaveCount(0);
       await wizard.toGuide('system', 'windows');
       await expect.soft(wizard.backButton).toHaveCount(0);
     });
 
-    await test.step('when Next and then Back are clicked, then the page is open down to the instruction with the choices pressed', async () => {
-      await wizard.next();
+    await test.step('when the Exit step of the strip and then Next are clicked, then the page is open down to the instruction with the choices pressed', async () => {
+      await wizard.strip.locator('#wizard-strip-exit').click();
       await wizard.expectScreen('exit');
-      await wizard.back();
+      await expect.poll(() => wizard.setupMark()).toBe('exit');
+      await wizard.next();
       await wizard.expectCursor('guide');
       await expect.soft(wizard.tile('os-windows')).toHaveAttribute('aria-pressed', 'true');
       await expect.soft(wizard.tile('os-mac')).toHaveAttribute('aria-pressed', 'false');
@@ -108,7 +111,7 @@ test.describe('the answers of the setup wizard', () => {
     const pressed = (id: Parameters<typeof wizard.tile>[0]) => expect.soft(wizard.tile(id)).toHaveAttribute('aria-pressed', 'true');
 
     await test.step('given: one browser, Safari pressed — the instruction is for Safari', async () => {
-      await wizard.open();
+      await wizard.openQuestions();
       await wizard.toGuide('browser', 'mac', 'safari');
       await pressed('browser-safari');
       await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up Safari');
@@ -154,9 +157,9 @@ test.describe('layout of the wizard screens', () => {
 
   test('128-wizard-exit-spacing: on the exit screen the name hint is at least 8px above the "Allow other members" row', async ({ app, page }) => {
     const wizard = app.wizard;
-    await wizard.open();
+    await wizard.openQuestions();
     await wizard.toGuide('system', 'mac');
-    await wizard.next();
+    await wizard.strip.locator('#wizard-strip-exit').click();
     await wizard.expectScreen('exit');
     const hint = page.locator('#wizard-screen').getByText('Others see you by this name');
     const row = page.locator('#wizard-screen .home-exit-toggle');
@@ -168,7 +171,7 @@ test.describe('layout of the wizard screens', () => {
   test('130-wizard-strip-side: the strip of steps stands left of the page on a wide card and above it on a narrow one', async ({ app, page }) => {
     const wizard = app.wizard;
     await page.setViewportSize({ width: 1280, height: 900 });
-    await wizard.open();
+    await wizard.openQuestions();
     await wizard.toGuide('system', 'mac');
     const [wide, wideRows] = [await wizard.strip.boundingBox(), await wizard.screen.boundingBox()];
     expect(wide!.x + wide!.width).toBeLessThanOrEqual(wideRows!.x);
@@ -184,7 +187,7 @@ test.describe('layout of the wizard screens', () => {
         const wizard = app.wizard;
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ colorScheme: 'light' });
-        await wizard.open();
+        await wizard.openQuestions();
         await wizard.toGuide('system', 'mac');
         await wizard.moreOptionsSummary.click();
         await app.proxyCard.manualToggle.click();

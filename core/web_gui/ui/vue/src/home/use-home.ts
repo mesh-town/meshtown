@@ -104,7 +104,7 @@ export interface HomeContext {
   pickWizBrowser: (browser: WizBrowser) => void;
   toggleBrowser: () => void;
   pickOther: () => void;
-  setMark: (mark: SetupMark) => void;
+  setMark: (mark: SetupMark, keepCursor?: boolean) => void;
 }
 
 // With nobody else in the network the status line stays hidden: the counter already says it.
@@ -163,14 +163,14 @@ function syncExit(form: HomeForm, value: string): void {
 
 // An explicit tab choice lives until reload; "Done" in the setup resets it — "Main" opens.
 // "Set up again" and "Done" start the wizard over: its cursor is derived from the answers again.
-function useMark(store: Store, deps: HomeDeps, homeTab: Ref<HomeTab | null>, form: HomeForm): { setupMark: Ref<string | null>; setMark: (mark: SetupMark) => void } {
+function useMark(store: Store, deps: HomeDeps, homeTab: Ref<HomeTab | null>, form: HomeForm): { setupMark: Ref<string | null>; setMark: (mark: SetupMark, keepCursor?: boolean) => void } {
   const setupMark = ref<string | null>(readSetupMark(deps.storage));
   const reread = () => { setupMark.value = readSetupMark(deps.storage) || setupMark.value; };
-  const setMark = (mark: SetupMark): void => {
+  const setMark = (mark: SetupMark, keepCursor = false): void => {
     writeSetupMark(mark, deps.storage);
     setupMark.value = mark;
     if (mark === "done") homeTab.value = null;
-    if (mark !== "exit") form.wizard = freshCursor();
+    if (!keepCursor) form.wizard = freshCursor();
   };
   watch(() => store.state, reread);
   return { setupMark, setMark };
