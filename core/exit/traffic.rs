@@ -3,6 +3,8 @@
 //! What it does: `ExitTraffic` is the node's registry; for each EXIT connection `watch` spawns a task,
 //! once per `TICK` it puts the connection's `sent_bytes + recv_bytes` delta into the registry; `rates_at`
 //! returns the sum of samples over `WINDOW` divided by its length — bytes/s per peer and direction.
+//! Besides the window, every sample is added to a running total per peer and direction (`totals`):
+//! the bytes through the exit since the node started; the window trimming does not touch it.
 //! Direction is the connection's side: `ThroughPeer` — our outgoing EXIT connections (we go
 //! through the peer), `ThroughUs` — incoming ones (the peer goes through us).
 //! `PORT` connections (port forwarding) are watched the same way and add up with the exit ones.
@@ -39,11 +41,32 @@ pub struct PeerRate {
     pub through_us_bps: u64,
 }
 
+/// Bytes through the exit since the node started, per peer (sent + received).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PeerTotals {
+    pub through_peer_bytes: u64,
+    pub through_us_bytes: u64,
+}
+
 type Samples = HashMap<(PeerId, Direction), VecDeque<(Instant, u64)>>;
+
+#[derive(Default)]
+struct State {
+    samples: Samples,
+    totals: HashMap<(PeerId, Direction), u64>,
+}
+
+/// The one place that picks the field of a peer's row by direction.
+fn slot<'a>(dir: Direction, through_peer: &'a mut u64, through_us: &'a mut u64) -> &'a mut u64 {
+    match dir {
+        Direction::ThroughPeer => through_peer,
+        Direction::ThroughUs => through_us,
+    }
+}
 
 /// Registry of exit traffic samples; clones share one state.
 #[derive(Clone, Default)]
-pub struct ExitTraffic(Arc<Mutex<Samples>>);
+pub struct ExitTraffic(Arc<Mutex<State>>);
 
 fn total_bytes(conn: &dyn PeerConn) -> u64 {
     let link = conn.link();
@@ -80,8 +103,10 @@ impl ExitTraffic {
         if bytes == 0 {
             return;
         }
-        let mut map = self.0.lock().unwrap();
-        let queue = map.entry((peer, dir)).or_default();
+        let mut state = self.0.lock().unwrap();
+        let total = state.totals.entry((peer, dir)).or_default();
+        *total = total.saturating_add(bytes);
+        let queue = state.samples.entry((peer, dir)).or_default();
         queue.push_back((at, bytes));
         let from = at.checked_sub(WINDOW);
         queue.retain(|&(t, _)| from.is_none_or(|from| t > from));
@@ -90,7 +115,8 @@ impl ExitTraffic {
     /// Speeds per peer at moment `now`; peers with no samples in the window are left out of the answer.
     pub fn rates_at(&self, now: Instant) -> HashMap<PeerId, PeerRate> {
         let from = now.checked_sub(WINDOW);
-        let mut map = self.0.lock().unwrap();
+        let mut state = self.0.lock().unwrap();
+        let map = &mut state.samples;
         map.retain(|_, queue| {
             queue.retain(|&(t, _)| from.is_none_or(|from| t > from));
             !queue.is_empty()
@@ -99,12 +125,20 @@ impl ExitTraffic {
         for (&(peer, dir), queue) in map.iter() {
             let bps = queue.iter().map(|&(_, b)| b).sum::<u64>() / WINDOW.as_secs();
             let rate = rates.entry(peer).or_default();
-            match dir {
-                Direction::ThroughPeer => rate.through_peer_bps = bps,
-                Direction::ThroughUs => rate.through_us_bps = bps,
-            }
+            *slot(dir, &mut rate.through_peer_bps, &mut rate.through_us_bps) = bps;
         }
         rates
+    }
+
+    /// Bytes through the exit since the node started, per peer; the window does not cut them.
+    pub fn totals(&self) -> HashMap<PeerId, PeerTotals> {
+        let state = self.0.lock().unwrap();
+        let mut out: HashMap<PeerId, PeerTotals> = HashMap::new();
+        for (&(peer, dir), &bytes) in state.totals.iter() {
+            let t = out.entry(peer).or_default();
+            *slot(dir, &mut t.through_peer_bytes, &mut t.through_us_bytes) = bytes;
+        }
+        out
     }
 }
 

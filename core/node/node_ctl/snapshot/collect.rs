@@ -98,6 +98,7 @@ pub(crate) async fn collect(
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
         relay_serving: *node.relay_serving.borrow(),
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
+        exit_totals: node.exit_traffic.totals(),
         exits: parts.exits,
         countries: country_texts(parts.countries),
         program_versions: with_own_version(node, parts.program_versions),

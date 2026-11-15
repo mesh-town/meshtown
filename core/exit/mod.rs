@@ -60,6 +60,6 @@ pub use udpgw::{is_gateway_target, UDPGW_HOST, UDPGW_PORT};
 pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOUT};
 pub use server::{exit_service, ExitConfig};
 pub use splice::{splice, HALF_CLOSE_GRACE};
-pub use traffic::{Direction, ExitTraffic, PeerRate};
+pub use traffic::{Direction, ExitTraffic, PeerRate, PeerTotals};
 pub(crate) use udpgw::attach as attach_gateway;
 pub(crate) use udpgw::codec as udpgw_codec;

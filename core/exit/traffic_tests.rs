@@ -173,3 +173,36 @@ pub(super) async fn connected() -> ((NetStack, NetStack), Arc<dyn PeerConn>) {
         .expect("connection to the exit");
     ((client, server), conn)
 }
+
+mod totals {
+    use super::*;
+
+    #[test]
+    fn totals_outlive_the_window() {
+        let (traffic, t0) = (ExitTraffic::default(), Instant::now());
+        traffic.add(pid(2), Direction::ThroughPeer, 4_000, t0);
+
+        let later = t0 + WINDOW + Duration::from_secs(5);
+
+        assert!(traffic.rates_at(later).is_empty());
+        assert_eq!(traffic.totals()[&pid(2)].through_peer_bytes, 4_000);
+    }
+
+    #[test]
+    fn totals_split_by_direction() {
+        let (traffic, t0) = (ExitTraffic::default(), Instant::now());
+        traffic.add(pid(2), Direction::ThroughPeer, 100, t0);
+        traffic.add(pid(2), Direction::ThroughPeer, 50, t0 + TICK);
+        traffic.add(pid(2), Direction::ThroughUs, 7, t0);
+
+        let totals = traffic.totals();
+
+        assert_eq!(
+            totals[&pid(2)],
+            PeerTotals {
+                through_peer_bytes: 150,
+                through_us_bytes: 7
+            }
+        );
+    }
+}

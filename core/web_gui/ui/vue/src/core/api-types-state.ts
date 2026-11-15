@@ -240,6 +240,9 @@ export interface PeerInfo {
   last_seen_sec: number;
   /** The reason the member announced an overload (record accepted); no key or `null` — not overloaded. */
   overloaded?: OverloadReason | null;
+  /** Bytes through the exit since this node started: our traffic through the peer / the peer's through us. */
+  through_peer_bytes?: number;
+  through_us_bytes?: number;
 }
 
 export interface DomainInfo {

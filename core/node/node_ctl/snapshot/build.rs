@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::time::Instant;
 
-use crate::exit::PeerRate;
+use crate::exit::{PeerRate, PeerTotals};
 use crate::transport::net::{PeerAddr, PeerId};
 
 use crate::config::config_file::ListenAccess;
@@ -57,6 +57,8 @@ pub(super) struct Inputs<'a> {
     pub relay_serving: bool,
     /// Exit traffic rate per peer, bytes/s (`exit::ExitTraffic::rates_at`).
     pub exit_rates: HashMap<PeerId, PeerRate>,
+    /// Exit traffic per peer since the node started, bytes (`exit::ExitTraffic::totals`).
+    pub exit_totals: HashMap<PeerId, PeerTotals>,
     pub exits: HashMap<PeerId, bool>,
     /// Member's country — shown for an offline member too.
     pub countries: HashMap<PeerId, String>,
