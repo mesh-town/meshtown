@@ -139,8 +139,9 @@ pub(crate) const BUSY_EXIT_MARK: &str = "🟠";
 /// The tail of a member row or an unselected exit item while that member's exit is overloaded.
 pub(crate) const OVERLOADED_TAIL: &str = " · overloaded";
 /// The menu item shown while this computer's own exit turns members away; a click opens the members section.
+/// The warning sign in front makes the item stand out among plain lines, like the coloured marks of exits.
 pub(crate) const OWN_OVERLOAD_ITEM_TEXT: &str =
-    "This computer is turning members away — open Members…";
+    "⚠️ This computer is turning members away — open Members…";
 /// The tail of the icon hint while this computer's own exit turns members away.
 pub(crate) const OWN_OVERLOAD_TOOLTIP_TAIL: &str = " · turning members away";
 /// Several exits are selected and none is online.

@@ -147,7 +147,7 @@ fn own_overload_line_and_tooltip_tail() {
     let quiet = TrayMembers::default();
     assert_eq!(
         own_overload_item_text(true, quiet),
-        Some("This computer is turning members away — open Members…")
+        Some("⚠️ This computer is turning members away — open Members…")
     );
     assert_eq!(own_overload_item_text(false, quiet), None);
     assert_eq!(own_overload_item_text(true, members(0, true)), None);
