@@ -44,6 +44,15 @@ mod connected {
     }
 
     #[test]
+    fn badge_says_online_for_an_online_device() {
+        let body = body_of(&page(vec![device("Box", true, &[(80, "web")])]));
+        assert!(
+            body.contains("<span class=\"badge\">online</span>"),
+            "{body}"
+        );
+    }
+
+    #[test]
     fn empty_says_nobody_shared() {
         let body = body_of(&page(vec![]));
         assert!(

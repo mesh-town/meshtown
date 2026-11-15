@@ -100,3 +100,74 @@ fn connected_skips_udp_ports() {
 
     assert!(run(&devices, &[udp]).is_empty());
 }
+
+fn net_b() -> NetSlotId {
+    NetSlotId::parse("aaaaaa").expect("six base32 characters")
+}
+
+fn in_net(mut device: Device, net: NetSlotId) -> Device {
+    device.net = net;
+    device
+}
+
+fn names_of(kind: PageKind) -> Vec<String> {
+    let PageKind::Connected { devices } = kind else {
+        panic!("not a connected page");
+    };
+    devices.into_iter().map(|d| d.name).collect()
+}
+
+#[test]
+fn connected_takes_ports_from_the_device_network_only() {
+    let list = [in_net(device(1, "Zed"), net_b())];
+    let reads = vec![
+        (
+            NetSlotId::main(),
+            pid(9),
+            vec![view(1, 80, "web", Audience::All)],
+        ),
+        (net_b(), pid(9), vec![]),
+    ];
+
+    assert!(names_of(connected_of(&list, reads)).is_empty());
+}
+
+#[test]
+fn connected_sorts_across_networks() {
+    let list = [device(1, "Zed"), in_net(device(2, "Alpha"), net_b())];
+    let reads = vec![
+        (
+            NetSlotId::main(),
+            pid(9),
+            vec![view(1, 80, "", Audience::All)],
+        ),
+        (net_b(), pid(9), vec![view(2, 81, "", Audience::All)]),
+    ];
+
+    assert_eq!(names_of(connected_of(&list, reads)), vec!["Alpha", "Zed"]);
+}
+
+#[test]
+fn connected_checks_audience_with_each_network_me() {
+    let list = [in_net(device(1, "Box"), net_b())];
+    let reads = vec![
+        (NetSlotId::main(), pid(9), vec![]),
+        (
+            net_b(),
+            pid(8),
+            vec![view(1, 80, "web", Audience::Nodes(vec![pid(8)]))],
+        ),
+    ];
+
+    assert_eq!(names_of(connected_of(&list, reads)), vec!["Box"]);
+}
+
+#[test]
+fn connected_keeps_the_offline_flag() {
+    let mut offline = device(1, "Box");
+    offline.online = false;
+
+    let found = run(&[offline], &[view(1, 80, "web", Audience::All)]);
+
+    assert!(!found[0].1.online);
+}
