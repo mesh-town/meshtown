@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// Setup step 2, under the browser card: what happens to sites while the node is not running. The answer is written at once.
+// Setup instructions step, under the browser steps: what happens to sites while the node is not running. The answer is written at once.
 import { computed, inject, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { fieldErrorText, saveConfigFields } from "../core/save-config.ts";
-import { HOME_WIZARD_STRICT_OFF, HOME_WIZARD_STRICT_ON, HOME_WIZARD_STRICT_Q } from "./home-card-texts.ts";
+import {
+  HOME_WIZARD_STRICT_LEAD, HOME_WIZARD_STRICT_OFF, HOME_WIZARD_STRICT_OFF_HINT, HOME_WIZARD_STRICT_ON, HOME_WIZARD_STRICT_ON_HINT, HOME_WIZARD_STRICT_Q,
+} from "./home-card-texts.ts";
 import { proxyView } from "./browser-setup.ts";
 
 const store = inject(STORE_KEY)!;
@@ -31,8 +33,9 @@ async function choose(strict: boolean): Promise<void> {
 <template>
   <fieldset v-if="visible" id="strict-choice" class="strict-choice">
     <legend id="strict-q">{{ HOME_WIZARD_STRICT_Q }}</legend>
-    <label class="exit-row"><input type="radio" name="strict-choice" id="strict-off" :checked="!shown" @change="choose(false)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_OFF }}</span></label>
-    <label class="exit-row"><input type="radio" name="strict-choice" id="strict-on" :checked="shown" @change="choose(true)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_ON }}</span></label>
+    <p id="strict-lead" class="hint">{{ HOME_WIZARD_STRICT_LEAD }}</p>
+    <label class="exit-row"><input type="radio" name="strict-choice" id="strict-off" :checked="!shown" @change="choose(false)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_OFF }}<span id="strict-off-hint" class="hint">{{ HOME_WIZARD_STRICT_OFF_HINT }}</span></span></label>
+    <label class="exit-row"><input type="radio" name="strict-choice" id="strict-on" :checked="shown" @change="choose(true)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_ON }}<span id="strict-on-hint" class="hint">{{ HOME_WIZARD_STRICT_ON_HINT }}</span></span></label>
     <p v-if="error" id="strict-error" class="field-error-text" role="alert">{{ error }}</p>
   </fieldset>
 </template>

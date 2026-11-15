@@ -8,6 +8,7 @@ import { HOME_COPIED, HOME_COPY_ADDR } from "../home-card-texts.ts";
 import { copyAriaLabel } from "../pac-setup.ts";
 import { useHomeContext } from "../use-home.ts";
 import type { Guide } from "./guide-content.ts";
+import StrictChoice from "../StrictChoice.vue";
 import MoreOptions from "./MoreOptions.vue";
 import TermText from "./TermText.vue";
 import { WIZ_APP_LINK, WIZ_COPY_ITEM, WIZ_TO_SYSTEM } from "./wizard-texts.ts";
@@ -43,6 +44,7 @@ const showAddress = computed(() => !router.value || routerPacUrl(store.state ?? 
     </ol>
     <p v-for="(t, i) in guide.browserSmall" :key="'b' + i" class="hint pac-small"><TermText :text="t" /></p>
   </template>
+  <StrictChoice v-if="guide.more" />
   <button v-if="guide.toSystem" type="button" class="btn" id="guide-to-system" @click="$emit('toSystem')">{{ WIZ_TO_SYSTEM }}</button>
   <MoreOptions v-if="guide.more" />
 </template>

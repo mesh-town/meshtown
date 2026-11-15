@@ -26,9 +26,13 @@ const checked = (wrapper) => [wrapper.get("#strict-off").element.checked, wrappe
 describe("StrictChoice", () => {
   it("the question and two answers", () => {
     const { wrapper } = mountChoice(false);
-    expect(wrapper.get("#strict-q").text()).toBe("If Mesh Town isn't running:");
-    expect(wrapper.get("#strict-off").element.parentElement.textContent).toBe("Open sites directly (recommended)");
-    expect(wrapper.get("#strict-on").element.parentElement.textContent).toBe("Don't open sites — for services that refuse sign-ins from another country");
+    expect(wrapper.get("#strict-q").text()).toBe("When Mesh Town is off");
+    expect(wrapper.get("#strict-lead").text()).toBe("While Mesh Town runs, sites see the location of your exit. Choose what happens to sites when it stops — for example, after you quit it.");
+    const label = (id) => wrapper.get(id).element.parentElement.querySelector(".exit-label-text").firstChild.textContent;
+    expect(label("#strict-off")).toBe("Open sites directly (recommended)");
+    expect(wrapper.get("#strict-off-hint").text()).toBe("Sites keep working, but they see where you really are.");
+    expect(label("#strict-on")).toBe("Keep sites closed");
+    expect(wrapper.get("#strict-on-hint").text()).toBe("Nothing opens until Mesh Town is back. Choose this if a bank or another service locks your account when you sign in from another country.");
   });
 
   it.each([[false, [true, false]], [true, [false, true]], [undefined, [true, false]]])("state strict=%s: radios %j", (strict, expected) => {

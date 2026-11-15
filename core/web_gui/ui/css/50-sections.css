@@ -145,4 +145,7 @@ details.removed>summary{cursor:pointer;color:var(--fg-muted);}
 .more-options > summary::-webkit-details-marker{display:none;}
 .more-options > summary::before{content:"\25B8  ";}
 .more-options[open] > summary::before{content:"\25BE  ";}
-fieldset.strict-choice{border:1px solid var(--border);border-radius:8px;margin:8px 0 0;}
+fieldset.strict-choice{border:1px solid var(--border);border-radius:8px;margin:10px 0 0;}
+  .strict-choice .exit-row{align-items:flex-start;}
+  .strict-choice .exit-row input{margin-top:3px;}
+  .strict-choice .exit-label-text{display:flex;flex-direction:column;gap:2px;}
