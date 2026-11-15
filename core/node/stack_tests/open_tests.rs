@@ -23,6 +23,7 @@ use crate::transport::net::facade::test_support::{pid, within};
 
 const SITE_BODY: &str = "hello from the site";
 const GHOST_GET: &[u8] = b"GET / HTTP/1.1\r\nHost: ghost.meshtown\r\n\r\n";
+const BARE_GET: &[u8] = b"GET / HTTP/1.1\r\nHost: meshtown\r\n\r\n";
 const SITE_GET: &[u8] = b"GET / HTTP/1.1\r\nHost: site.test\r\n\r\n";
 const TLS_HELLO_START: &[u8] = &[0x16, 0x03, 0x01];
 const NO_CONNECTION_WINDOW: Duration = Duration::from_millis(300);
@@ -114,6 +115,27 @@ mod host_in_the_mesh_suffix {
 
             // then
             assert_status(&answer, "404");
+        }
+    }
+
+    mod with_the_bare_name {
+        use super::*;
+
+        #[tokio::test]
+        async fn is_answered_with_the_connected_page() {
+            // given
+            let t = setup(HashMap::new()).await;
+
+            // when
+            let answer = t.fetch("meshtown", 80, BARE_GET).await;
+
+            // then
+            assert_status(&answer, "200");
+            let text = String::from_utf8_lossy(&answer);
+            assert!(
+                text.contains("This browser is connected to Mesh Town"),
+                "{text}"
+            );
         }
     }
 

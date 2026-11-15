@@ -254,7 +254,8 @@ only them as relays.
 whose exit list it uses), the node page and the tray. Through the proxy, `http://<device-name>.meshtown` finds
 devices in every network this node is in, so a port a device shared with you in any of them opens the same way;
 programs on your local network that use this proxy (`socks.access localnet`) see the same names. A local port
-number can be opened only once across all networks.
+number can be opened only once across all networks. Open http://meshtown/ to check that the browser goes through
+Mesh Town and to see the ports shared with you.
 
 **Invite into the right network.** "Invite a member" and `invite` act on the network whose tab is open (`--net
 <network>` in the terminal). An invite names its network, and a node that joins by an invite is admitted at once.

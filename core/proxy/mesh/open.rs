@@ -9,6 +9,7 @@ use crate::proxy::serve::ProxyConfig;
 use crate::proxy::socks5::Target;
 
 use super::catalog::{devices, lookup, rows_of, Device, Lookup};
+use super::connected::connected_kind;
 use super::host::MeshHost;
 use super::open_page::{ambiguous, not_found, Ask};
 
@@ -30,6 +31,12 @@ pub(crate) async fn open_target(
 /// Opens `host`:`port` inside the mesh. Never fails: whatever cannot be reached is answered with a page.
 async fn open_mesh(entries: Vec<NetEntry>, host: MeshHost, port: u16) -> OpenedUpstream {
     let list = devices(rows_of(&entries));
+    if host.label.is_empty() {
+        let kind = connected_kind(&entries, &list).await;
+        return Ask::bare(&entries, &host, port)
+            .page("connected", kind)
+            .await;
+    }
     match lookup(&list, &host) {
         Lookup::Found(device) => open_device(&entries, &list, device, &host, port).await,
         Lookup::Ambiguous(found) => {

@@ -378,7 +378,10 @@ mod common_text {
 
     #[test]
     fn says_the_page_is_from_mesh_town_on_this_member() {
-        for (what, page) in every_variant() {
+        let answers = every_variant()
+            .into_iter()
+            .filter(|(what, _)| *what != "connected");
+        for (what, page) in answers {
             let body = body_of(&page);
             assert!(
                 body.contains(

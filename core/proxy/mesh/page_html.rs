@@ -11,8 +11,8 @@ use super::page_texts::{
     PAGE_H2_WHAT_TO_DO, PAGE_HINT_AMBIGUOUS, PAGE_HINT_NOT_FOUND, PAGE_MESSAGE, PAGE_MESSAGE_LABEL,
     PAGE_NO_SHARED_PORTS, PAGE_OFFLINE, PAGE_ONLINE, PAGE_OPEN_PORT, PAGE_OPEN_PORT_NAMED, PAGE_OR,
     PAGE_STEP_OPEN_TAB, PAGE_STEP_PUBLISH, PAGE_STEP_SHARE, PAGE_THEN_TRY_AGAIN,
-    PAGE_TITLE_AMBIGUOUS, PAGE_TITLE_NOT_FOUND, PAGE_TITLE_NOT_OPENED, PAGE_TITLE_NO_NAME,
-    PAGE_TITLE_NO_SERVICE, PAGE_TITLE_OFFLINE, PAGE_TRY_AGAIN, PAGE_WHO,
+    PAGE_TITLE_AMBIGUOUS, PAGE_TITLE_NOT_FOUND, PAGE_TITLE_NOT_OPENED, PAGE_TITLE_NO_SERVICE,
+    PAGE_TITLE_OFFLINE, PAGE_TRY_AGAIN, PAGE_WHO,
 };
 
 /// Status, title and inner HTML of one answer page.
@@ -70,7 +70,7 @@ fn value_of(values: &[(&str, &str)], key: &str) -> String {
         .unwrap_or_default()
 }
 
-fn para(class: &str, html: &str) -> String {
+pub(super) fn para(class: &str, html: &str) -> String {
     format!("<p class=\"{class}\">{html}</p>")
 }
 
@@ -106,7 +106,7 @@ fn card(page: &MeshPage, h1: &str, lead: &str, rest: &str) -> String {
     format!("<h1>{h1}</h1>{lead}{}{rest}", who(page))
 }
 
-fn port_line(port: &OpenPort) -> String {
+pub(super) fn port_line(port: &OpenPort) -> String {
     let link = format!("<a href=\"{0}\">{0}</a>", esc(&port.url));
     let name = format!(" <span class=\"muted\">— {}</span>", esc(&port.name));
     format!(
@@ -161,12 +161,6 @@ fn parts(status: u16, title: String, body: String) -> Parts {
 }
 
 fn slug_texts(label: &str) -> (String, String) {
-    if label.is_empty() {
-        return (
-            PAGE_TITLE_NO_NAME.to_string(),
-            PAGE_TITLE_NO_NAME.to_string(),
-        );
-    }
     let values = [("slug", label)];
     (
         fill(PAGE_TITLE_NOT_FOUND, &values),
