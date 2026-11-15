@@ -109,6 +109,7 @@ describe("SetupWizard > guide > only in one browser", () => {
     expect(items(wrapper, "#pac-steps > li").slice(1)).toEqual(FIREFOX_STEPS);
     expect(wrapper.find("#guide-to-system").exists()).toBe(false);
     expect(wrapper.find("#more-options").exists()).toBe(true);
+    expect(wrapper.find("#strict-choice").exists()).toBe(true);
   });
 
   it.each([["chrome", "Chrome"], ["edge", "Edge"], ["safari", "Safari"]])("%s explains it uses the system setting and offers all apps", async (id, name) => {
@@ -177,14 +178,23 @@ describe("SetupWizard > guide > phones", () => {
 });
 
 describe("SetupWizard > guide > extras", () => {
-  it("more options are collapsed and hold strict choice and manual setup", async () => {
+  it("more options are collapsed and hold manual setup", async () => {
     const { wrapper } = mount();
     await toGuide(wrapper);
     const more = wrapper.get("#more-options");
     expect(more.element.open).toBe(false);
-    expect(more.find("#strict-choice").exists()).toBe(true);
+    expect(more.find("#strict-choice").exists()).toBe(false);
     expect(more.find("#manual-toggle").exists()).toBe(true);
     expect(more.element.compareDocumentPosition(wrapper.get("#browser-steps").element) & Node.DOCUMENT_POSITION_PRECEDING, "after the browser steps").toBeTruthy();
+  });
+
+  it("the strict choice is visible between the browser steps and more options", async () => {
+    const { wrapper } = mount();
+    await toGuide(wrapper);
+    const choice = wrapper.get("#strict-choice").element;
+    expect(choice.closest("details"), "not inside a details block").toBeNull();
+    expect(choice.compareDocumentPosition(wrapper.get("#browser-steps").element) & Node.DOCUMENT_POSITION_PRECEDING, "after the browser steps").toBeTruthy();
+    expect(choice.compareDocumentPosition(wrapper.get("#more-options").element) & Node.DOCUMENT_POSITION_FOLLOWING, "before more options").toBeTruthy();
   });
 
   it("the manual block opens without a browser switcher", async () => {
@@ -216,6 +226,7 @@ function expectOnlyTheSwitch(wrapper) {
   expect(wrapper.find("#guide-to-system").text()).toBe("Set up for all apps");
   expect(wrapper.find("#pac-copy-btn").exists()).toBe(false);
   expect(wrapper.find("#more-options").exists()).toBe(false);
+  expect(wrapper.find("#strict-choice").exists()).toBe(false);
 }
 
 function trapClipboard() {

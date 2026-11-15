@@ -1,5 +1,5 @@
-/* "More options" under the setup instructions: collapsed by default, holds the strict-mode question and the manual
- * SOCKS5 block, and both depend on the browser proxy being on. */
+/* "More options" under the setup instructions: collapsed by default, holds the manual
+ * SOCKS5 block, which depends on the browser proxy being on. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { baseConfig, baseState, mountSection } from "../../testing/section.mjs";
@@ -30,10 +30,10 @@ describe("MoreOptions", () => {
       expect(details.get("summary").text()).toBe("More options");
     });
 
-    it("holds the strict-mode question and the manual-setup toggle", () => {
+    it("holds the manual-setup toggle and no strict-mode question", () => {
       const { wrapper } = setup(PROXY_ON);
       const details = wrapper.get("details#more-options");
-      expect(details.find("fieldset#strict-choice").exists(), "strict choice inside").toBe(true);
+      expect(details.find("#strict-choice").exists(), "strict choice moved out").toBe(false);
       expect(details.find("#manual-toggle").exists(), "manual toggle inside").toBe(true);
     });
 
