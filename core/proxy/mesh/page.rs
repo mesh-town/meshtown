@@ -1,5 +1,6 @@
 //! HTML answer pages.
 
+use super::page_connected;
 use super::page_html::{self, Parts};
 use super::page_texts::{PAGE_BRAND, PAGE_CSS, PAGE_SCRIPT};
 
@@ -15,6 +16,13 @@ pub(crate) struct MeshChoice {
     pub url: String,
     pub name: String,
     pub online: bool,
+}
+
+/// A device that has opened ports to this node.
+pub(crate) struct SharedDevice {
+    pub name: String,
+    pub online: bool,
+    pub open: Vec<OpenPort>,
 }
 
 /// An answer page: who speaks, which host was asked, and the variant.
@@ -52,6 +60,10 @@ pub(crate) enum PageKind {
         port: u16,
         timed_out: bool,
     },
+    /// The bare `meshtown` name: the browser is connected; the devices that shared ports with this node.
+    Connected {
+        devices: Vec<SharedDevice>,
+    },
 }
 
 /// Renders a complete HTTP/1.1 response; with `head_only` the body is left out.
@@ -88,11 +100,13 @@ fn parts_of(page: &MeshPage) -> Parts {
             port,
             timed_out,
         } => page_html::no_service(page, device, url, *port, *timed_out),
+        PageKind::Connected { devices } => page_connected::connected(page, devices),
     }
 }
 
 fn reason(status: u16) -> &'static str {
     let known = [
+        (200, "OK"),
         (300, "Multiple Choices"),
         (403, "Forbidden"),
         (404, "Not Found"),
@@ -128,3 +142,7 @@ mod tests;
 #[cfg(test)]
 #[path = "page_more_tests.rs"]
 mod more_tests;
+
+#[cfg(test)]
+#[path = "page_connected_tests.rs"]
+mod connected_tests;

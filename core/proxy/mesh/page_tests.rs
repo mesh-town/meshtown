@@ -192,22 +192,6 @@ mod not_found {
         }
     }
 
-    mod empty_label {
-        use super::*;
-
-        #[test]
-        fn title_says_the_address_has_no_member_name() {
-            let body = body_of(&not_found("", &[]));
-            assert!(body.contains("This address has no member name"), "{body}");
-        }
-
-        #[test]
-        fn does_not_quote_an_empty_name() {
-            let body = body_of(&not_found("", &[]));
-            assert!(!body.contains("There is no member called"), "{body}");
-        }
-    }
-
     mod suggestions {
         use super::*;
 
@@ -370,7 +354,16 @@ pub(super) fn no_service(timed_out: bool) -> MeshPage {
 pub(super) fn every_variant() -> Vec<(&'static str, MeshPage)> {
     vec![
         ("not found", not_found("x", &["http://box.meshtown"])),
-        ("not found, empty label", not_found("", &[])),
+        (
+            "connected",
+            make(PageKind::Connected {
+                devices: vec![SharedDevice {
+                    name: "Box".to_string(),
+                    online: true,
+                    open: open_ports(&[(3000, "web")]),
+                }],
+            }),
+        ),
         ("ambiguous", ambiguous(&[("Box", true), ("Box", false)])),
         ("not opened", not_opened(&[(3000, "web")], false)),
         ("not opened, owner offline", not_opened(&[], true)),

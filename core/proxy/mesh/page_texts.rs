@@ -13,8 +13,14 @@ pub(super) const PAGE_COPY_FAIL_ADDRESS: &str =
 pub(super) const PAGE_ONLINE: &str = "online";
 pub(super) const PAGE_OFFLINE: &str = "offline";
 
+pub(super) const PAGE_TITLE_CONNECTED: &str = "Mesh Town is connected";
+pub(super) const PAGE_H1_CONNECTED: &str = "This browser is connected to Mesh Town";
+pub(super) const PAGE_LEAD_CONNECTED: &str =
+    "Addresses ending in .meshtown open through Mesh Town on {me}.";
+pub(super) const PAGE_H2_CONNECTED_PORTS: &str = "Ports shared with you";
+pub(super) const PAGE_NOBODY_SHARED: &str = "No member has shared a port with you yet. The owner shares a port on the Ports tab of their Mesh Town.";
+
 pub(super) const PAGE_TITLE_NOT_FOUND: &str = "No member named {slug}";
-pub(super) const PAGE_TITLE_NO_NAME: &str = "This address has no member name";
 pub(super) const PAGE_H1_NOT_FOUND: &str = "There is no member called “{slug}”";
 pub(super) const PAGE_BODY_NOT_FOUND: &str =
     "Mesh Town didn't find a member with this name in your networks.";
