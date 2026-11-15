@@ -85,6 +85,8 @@ fn self_peer_info(i: &Inputs<'_>) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        through_peer_bytes: 0,
+        through_us_bytes: 0,
         overloaded: own_reason(i),
     }
 }
@@ -105,6 +107,7 @@ fn other_peer_info(i: &Inputs<'_>, ev: &Evidence<'_>, id: PeerId) -> PeerInfo {
     });
     let last_seen_sec = stale_peers::age_sec(ev, id).unwrap_or(0);
     let rate = i.exit_rates.get(&id).copied().unwrap_or_default();
+    let totals = i.exit_totals.get(&id).copied().unwrap_or_default();
     PeerInfo {
         id: output::short_peer_id(&id),
         id_full: id.to_string(),
@@ -125,6 +128,8 @@ fn other_peer_info(i: &Inputs<'_>, ev: &Evidence<'_>, id: PeerId) -> PeerInfo {
         last_seen_sec,
         through_peer_bps: rate.through_peer_bps,
         through_us_bps: rate.through_us_bps,
+        through_peer_bytes: totals.through_peer_bytes,
+        through_us_bytes: totals.through_us_bytes,
         overloaded: record_reason(i, &id),
     }
 }

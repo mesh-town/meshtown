@@ -162,6 +162,10 @@ pub struct PeerInfo {
     pub through_peer_bps: u64,
     /// This peer's traffic through our exit, bytes/s over 10 s; own row and no data — 0.
     pub through_us_bps: u64,
+    /// Bytes of our traffic through this peer as an exit since this node started; own row and no data — 0.
+    pub through_peer_bytes: u64,
+    /// Bytes of this peer's traffic through our exit since this node started; own row and no data — 0.
+    pub through_us_bytes: u64,
     /// Why the member says its exit is overloaded (`limit`, `share`, `memory`, `other`); `null` — it does not
     /// or the record is not counted. The own row reads the live state.
     pub overloaded: Option<String>,

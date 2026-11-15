@@ -7,6 +7,7 @@
 //! The `socks.pac_url` key was added by hand — a new field, the old keys were
 //! not touched.
 //! The `peers[].through_peer_bps` and `peers[].through_us_bps` keys were added by hand — new fields, the old keys were not touched.
+//! The `peers[].through_peer_bytes` and `peers[].through_us_bytes` keys were added by hand in the same way.
 //! The `members.me_excluded` key was added by hand — a new field,
 //! the old keys were not touched.
 //! The `members.closed` key was added by hand in the same way.
@@ -171,6 +172,8 @@ const FILLED_KEYS: &[&str] = &[
     "peers[].through_peer_bps",
     "peers[].overloaded",
     "peers[].through_us_bps",
+    "peers[].through_peer_bytes",
+    "peers[].through_us_bytes",
     "peers[].version",
     "ports",
     "ports.network",

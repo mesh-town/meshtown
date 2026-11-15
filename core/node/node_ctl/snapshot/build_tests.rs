@@ -59,6 +59,7 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         exit_clients: Vec::new(),
         relay_serving: false,
         exit_rates: HashMap::new(),
+        exit_totals: HashMap::new(),
         exits: HashMap::new(),
         countries: HashMap::new(),
         program_versions: HashMap::new(),

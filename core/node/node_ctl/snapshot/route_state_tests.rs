@@ -42,6 +42,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         exit_clients: Vec::new(),
         relay_serving: false,
         exit_rates: HashMap::new(),
+        exit_totals: HashMap::new(),
         exits: serving,
         countries: HashMap::new(),
         program_versions: HashMap::new(),
@@ -80,6 +81,8 @@ fn peer_info(id: PeerId, online: bool, exit: Option<bool>) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        through_peer_bytes: 0,
+        through_us_bytes: 0,
         overloaded: None,
     }
 }

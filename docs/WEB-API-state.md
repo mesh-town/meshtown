@@ -93,6 +93,9 @@ Exact enum values and field notes, by group.
   node does not send the field; the reader treats its absence as `0`.
 - `peers[].through_us_bps` — the same for this peer's traffic through our exit (incoming EXIT connections from it).
   The window, composition and defaults are the same as for `through_peer_bps`.
+- `peers[].through_peer_bytes`, `peers[].through_us_bytes` — integers: the same two directions as bytes accumulated since
+  this node started (not persisted across restarts, not cut by the window). Always present; `0` on the own row and
+  when there is no data.
 - `peers[].overloaded` — `null`, or the reason the member's exit says it is overloaded: `"limit"` (the cap on all
   streams), `"share"` (one member reached its share), `"memory"` (the process memory guard), `"other"` (a word from a
   newer version). The record (`node/exit-load/` in the shared network document) counts only while its author is online

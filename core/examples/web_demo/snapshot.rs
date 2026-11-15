@@ -85,6 +85,8 @@ fn demo_self_peer_info(st: &DemoState) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        through_peer_bytes: 0,
+        through_us_bytes: 0,
         overloaded: None,
     }
 }
@@ -106,6 +108,8 @@ fn build_demo_peer_infos(st: &DemoState) -> Vec<PeerInfo> {
         last_seen_sec: 1,
         through_peer_bps: 0,
         through_us_bps: 0,
+        through_peer_bytes: 1_500_000,
+        through_us_bytes: 12_300_000,
         overloaded: None,
     });
     std::iter::once(demo_self_peer_info(st))

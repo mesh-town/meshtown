@@ -1,6 +1,7 @@
 // Texts of the "Networks" tab: connection, the old-version mark, action captions.
 
 import { forDevice } from "../common/device.ts";
+import { NET_NAME } from "../common/words.ts";
 
 export function peersOlderTitleText(peerVersion: string | null | undefined, ownVersion: string | null | undefined): string {
   return "This member has Mesh Town " + peerVersion + ", you have " + ownVersion + ". Ask them to update Mesh Town.";
@@ -127,3 +128,7 @@ export function invitedAsText(name: string, label: string | null | undefined): s
   if (!clean || clean === name) return "";
   return `(invited as "${clean}")`;
 }
+
+export const PEERS_TRAFFIC_VIA_THEM = "You used their exit: ";
+export const PEERS_TRAFFIC_VIA_YOU = "They used your exit: ";
+export const PEERS_TRAFFIC_TITLE = "Traffic in both directions since " + NET_NAME + " started on this device";

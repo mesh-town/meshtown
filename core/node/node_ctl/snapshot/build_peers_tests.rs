@@ -214,3 +214,32 @@ fn socks_strict_is_in_the_state_json() {
     let json = serde_json::to_value(&snap.socks).expect("serializes");
     assert!(json["strict"].is_boolean(), "{json}");
 }
+
+#[test]
+fn other_row_carries_exit_totals() {
+    let (me, x) = (pair(1), pair(2));
+    let mut inputs = base(me);
+    inputs.members = [x].into_iter().collect();
+    let totals = crate::exit::PeerTotals {
+        through_peer_bytes: 11,
+        through_us_bytes: 22,
+    };
+    inputs.exit_totals = [(x, totals), (me, totals)].into_iter().collect();
+
+    let peers = build_peers(&inputs);
+
+    let row = |id: PeerId| {
+        peers
+            .iter()
+            .find(|p| p.id == output::short_peer_id(&id))
+            .unwrap()
+    };
+    assert_eq!(
+        (row(x).through_peer_bytes, row(x).through_us_bytes),
+        (11, 22)
+    );
+    assert_eq!(
+        (row(me).through_peer_bytes, row(me).through_us_bytes),
+        (0, 0)
+    );
+}
