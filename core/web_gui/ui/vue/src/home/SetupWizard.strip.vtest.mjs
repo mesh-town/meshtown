@@ -14,7 +14,7 @@ describe("SetupWizard > strip", () => {
   it("shows the named steps with the current one marked", () => {
     const { wrapper } = mount();
     expect(wrapper.get("#wizard-strip").attributes("aria-label")).toBe("Setup steps");
-    expect(names(wrapper)).toEqual(["✓Join", "✓Apps", "✓System", "4Set up", "5Exit"]);
+    expect(names(wrapper)).toEqual(["✓Join", "✓Exit", "✓Apps", "✓System", "5Set up"]);
     expect(wrapper.get("#wizard-strip-guide").attributes("aria-current")).toBe("step");
   });
 
@@ -38,26 +38,26 @@ describe("SetupWizard > strip", () => {
     expect(document.activeElement).toBe(wrapper.get("#wizard-q-os").element);
   });
 
-  it("a click on a row from the exit screen returns to the page with the rows open", async () => {
-    const { wrapper } = mount({ mark: "exit" });
+  it("a click on a row seen before, from the exit screen, returns to the page with the rows open", async () => {
+    const { wrapper } = mount();
+    await click(wrapper, "#wizard-strip-exit");
     expect(step(wrapper)).toBe("exit");
-    await click(wrapper, "#wizard-strip-os");
+    expect(wrapper.get("#wizard-strip-os").element.tagName, "not seen yet: locked").toBe("SPAN");
+    await click(wrapper, "#wizard-strip-guide");
     expect(step(wrapper)).toBe("choices");
     expect(cursor(wrapper)).toBe("guide");
-    expect(document.activeElement).toBe(wrapper.get("#wizard-q-os").element);
   });
 
-  it("a click on an open step goes forward to it", async () => {
+  it("a click on the exit step goes back to it, and the steps already passed stay buttons", async () => {
     const { wrapper } = mount();
-    await click(wrapper, "#wizard-next");
-    await click(wrapper, "#wizard-back");
     expect(wrapper.get("#wizard-strip-exit").element.tagName).toBe("BUTTON");
     await click(wrapper, "#wizard-strip-exit");
     expect(step(wrapper)).toBe("exit");
   });
 
-  it("Back keeps its accessible name and shows an arrow", () => {
-    const { wrapper } = mount({ mark: "exit" });
+  it("Back keeps its accessible name and shows an arrow", async () => {
+    const { wrapper } = mount({ inApp: true, mark: null });
+    await click(wrapper, "#wizard-next");
     const back = wrapper.get("#wizard-back");
     expect(back.text()).toBe("← Back");
     expect(back.get("span").attributes("aria-hidden")).toBe("true");
@@ -66,6 +66,6 @@ describe("SetupWizard > strip", () => {
   it("the strip is gone when the start failed, and the progress line stays for readers", () => {
     const { wrapper } = mount({ startError: true });
     expect(wrapper.find("#wizard-strip").exists()).toBe(false);
-    expect(mount().wrapper.get("#wizard-progress").text()).toBe("Step 4 of 5");
+    expect(mount().wrapper.get("#wizard-progress").text()).toBe("Step 5 of 5");
   });
 });

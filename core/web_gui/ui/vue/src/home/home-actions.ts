@@ -106,7 +106,7 @@ export function createHomeForm(): HomeForm {
   };
 }
 
-// The setup mark: null, "browser", "exit", "done". Storage errors are swallowed.
+// The setup mark: null, "exit" (joined, return to the exit step), "browser" (past the exit step, return to the browser steps), "done". Storage errors are swallowed.
 export function readSetupMark(storage: SetupStorage | null): string | null {
   try {
     return storage!.getItem(SETUP_KEY); // storage: null falls into catch — "no storage"

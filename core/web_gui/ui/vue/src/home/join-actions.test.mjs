@@ -84,7 +84,7 @@ describe("joinNetwork", () => {
       const w = setup({ reply: { label: "family" } });
       w.form.inviteInput = "k";
       await joinNetwork(w.form, w.store, w.deps);
-      assert.equal(w.storage.data.get(MARK_KEY), "browser");
+      assert.equal(w.storage.data.get(MARK_KEY), "exit");
     });
   });
 
@@ -191,7 +191,7 @@ describe("createNetwork", () => {
       w.form.inviteInput = "half-typed";
       assert.equal(await createNetwork(w.form, w.store, w.deps), "created");
       assert.deepEqual(w.calls, [["POST", "/api/network/create", { label: "family" }]]);
-      assert.equal(w.storage.data.get(MARK_KEY), "browser");
+      assert.equal(w.storage.data.get(MARK_KEY), "exit");
       assert.equal(w.form.choice, "");
       assert.equal(w.form.label, "");
       assert.equal(w.form.inviteInput, "");

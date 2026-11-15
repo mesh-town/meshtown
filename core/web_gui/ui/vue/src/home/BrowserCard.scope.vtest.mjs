@@ -100,6 +100,7 @@ describe("BrowserCard > scope question", () => {
   });
 
   it("the scope picked on the card is the one the wizard shows: one answer for both", async () => {
+    localStorage.setItem("meshtown.homeSetup", "browser");
     const store = createStore();
     applySnapshot(store, { state: baseState(PROXY_ON), config: baseConfig(), configRev: 1 });
     const Both = defineComponent({

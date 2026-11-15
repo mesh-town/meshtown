@@ -71,22 +71,23 @@ describe("the step-by-step setup after creating a network", () => {
     await polls(node, 1);
   }
 
-  it("the second screen, \"Next\", the exit screen, \"Finish\" — the status panel; after a reload there is no setup", async () => {
+  it("the exit screen, \"Next\", the questions, \"Finish\" — the status panel; after a reload there is no setup", async () => {
     const node = makeNode({ state: noNetState(), routes: { "POST /api/network/create": createRoute } });
     const { wrapper } = await mountPage(node);
     await createNet(wrapper, node);
 
     expect(wizard(wrapper).text()).toContain("✓ You joined the network");
     const screen = wizard(wrapper).get("#wizard-screen");
-    expect(screen.attributes("data-step")).toBe("choices");
+    expect(screen.attributes("data-step")).toBe("exit");
     expect(shown(screen.element)).toBe(true);
-    expect(shown(wizard(wrapper).get("#wizard-next").element)).toBe(true);
-
-    await wizard(wrapper).get("#wizard-next").trigger("click");
-    expect(wizard(wrapper).get("#wizard-screen").attributes("data-step")).toBe("exit");
     const radio = wizard(wrapper).get("#exit-direct");
     expect(shown(radio.element)).toBe(true);
     expect(radio.element.closest("label").textContent.trim()).toMatch(/^Directly/);
+    expect(shown(wizard(wrapper).get("#wizard-next").element)).toBe(true);
+
+    await wizard(wrapper).get("#wizard-next").trigger("click");
+    expect(wizard(wrapper).get("#wizard-screen").attributes("data-step")).toBe("choices");
+    expect(shown(wizard(wrapper).get("#wizard-next").element)).toBe(true);
 
     await buttonByText(wizard(wrapper), "Finish").trigger("click");
     expect(wizard(wrapper).exists()).toBe(false);
