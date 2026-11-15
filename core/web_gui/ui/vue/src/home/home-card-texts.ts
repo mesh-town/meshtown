@@ -80,9 +80,12 @@ export const HOME_WIZARD_STEP_EXIT = "Choose an exit";
 export const HOME_WIZARD_DONE = "Done";
 export const HOME_WIZARD_STEP_CONNECT = "Tap Connect at the bottom of the screen";
 export const HOME_WIZARD_MORE = "More options";
-export const HOME_WIZARD_STRICT_Q = "If " + NET_NAME + " isn't running:";
+export const HOME_WIZARD_STRICT_Q = "When " + NET_NAME + " is off";
+export const HOME_WIZARD_STRICT_LEAD = "While " + NET_NAME + " runs, sites see the location of your exit. Choose what happens to sites when it stops — for example, after you quit it.";
 export const HOME_WIZARD_STRICT_OFF = "Open sites directly (recommended)";
-export const HOME_WIZARD_STRICT_ON = "Don't open sites — for services that refuse sign-ins from another country";
+export const HOME_WIZARD_STRICT_OFF_HINT = "Sites keep working, but they see where you really are.";
+export const HOME_WIZARD_STRICT_ON = "Keep sites closed";
+export const HOME_WIZARD_STRICT_ON_HINT = "Nothing opens until " + NET_NAME + " is back. Choose this if a bank or another service locks your account when you sign in from another country.";
 export const HOME_PHONE_TITLE = "This phone";
 export const HOME_NAME_SAVE = "Save";
 
