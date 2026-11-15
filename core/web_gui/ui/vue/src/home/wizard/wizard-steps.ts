@@ -26,14 +26,14 @@ export function isPhoneOs(os: OsId): boolean {
 function scopePath(ctx: WizardCtx): StepId[] {
   const withOs: StepId[] = ctx.scope === "browser" ? [] : ["os"];
   const withBrowser: StepId[] = ctx.scope === "browser" && !isPhoneOs(ctx.os) ? ["browser"] : [];
-  return ["scope", ...withOs, ...withBrowser, "guide", "exit"];
+  return ["scope", ...withOs, ...withBrowser, "guide"];
 }
 
 export function wizardPath(ctx: WizardCtx): StepId[] {
   if (ctx.inApp) return ["join", "exit", "connect"];
-  if (!ctx.proxyOn || ctx.skipped) return ["join", "scope", "exit"];
-  if (ctx.router) return ["join", "os", "guide", "exit"];
-  return ["join", ...scopePath(ctx)];
+  if (!ctx.proxyOn || ctx.skipped) return ["join", "exit", "scope"];
+  if (ctx.router) return ["join", "exit", "os", "guide"];
+  return ["join", "exit", ...scopePath(ctx)];
 }
 
 /** Whether a step already has an answer: the system and the browser always do (detected), the scope once chosen. */
@@ -51,8 +51,9 @@ export function settleStep(ctx: WizardCtx, from: StepId): StepId {
 
 export function startStep(ctx: WizardCtx, mark: string | null): StepId {
   if (!ctx.hasNet) return "join";
-  if (ctx.inApp || mark === "exit") return "exit";
-  return settleStep(ctx, wizardPath(ctx)[1]);
+  const path = wizardPath(ctx);
+  if (ctx.inApp || mark !== "browser") return path[1];
+  return settleStep(ctx, path[2]);
 }
 
 export function validStep(ctx: WizardCtx, cur: StepId, mark: string | null): StepId {
@@ -83,13 +84,17 @@ export function stepProgress(ctx: WizardCtx, cur: StepId): { n: number; m: numbe
 export function navKind(ctx: WizardCtx, cur: StepId): NavKind | null {
   if (cur === "join") return null;
   if (cur === "connect") return "done";
-  if (cur === "exit") return ctx.inApp ? "next" : "finish";
+  const path = wizardPath(ctx);
+  if (cur === path[path.length - 1]) return "finish";
+  if (cur === "exit") return "next";
   if (cur === "scope") return !ctx.proxyOn ? "next" : ctx.scope === null ? "skip" : null;
   return cur === "guide" ? "next" : null;
 }
 
+/** The mark written on entering a step: where a repeated visit returns (the exit step, or the steps after it). */
 export function markOnEnter(step: StepId): SetupMark | null {
-  return step === "exit" ? "exit" : null;
+  if (step === "exit") return "exit";
+  return step === "join" || step === "connect" ? null : "browser";
 }
 
 export type ScreenId = "choices" | "join" | "exit" | "connect";

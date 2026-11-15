@@ -122,11 +122,12 @@ describe("SetupWizard > exit screen", () => {
     expect(wrapper.text()).not.toContain("Tap Connect");
   });
 
-  it("the name field has no \"Save\" button, \"Finish\" is the last one", () => {
+  it("the name field has no \"Save\" button, \"Next\" leads on to the questions", () => {
     const { wrapper } = mount({ mark: "exit" });
     const texts = wrapper.get(REGION).findAll("button").map((b) => b.text());
     expect(texts).not.toContain("Save");
-    expect(texts).toContain("Finish");
+    expect(texts).toContain("Next");
+    expect(texts).not.toContain("Finish");
     expect(texts).not.toContain("Done");
   });
 

@@ -26,27 +26,27 @@ describe("SetupWizard > start", () => {
     expect(wrapper.find("#wizard-next").exists(), "the join screen has its own buttons").toBe(false);
   });
 
-  it("joining a network moves on to the scope question as step 2 of 5, with the joined line and no Back", async () => {
+  it("joining a network moves on to the exit screen as step 2 of 5, with the joined line and no Back", async () => {
     const { wrapper, store } = mount({ hasNet: false });
     store.state = baseState({ ...WITH_PROXY, network: { id_hex: "net-aaaa", label: "family" } });
     await flushPromises();
-    expect(cursor(wrapper)).toBe("scope");
+    expect(cursor(wrapper)).toBe("exit");
     expect(progress(wrapper)).toBe("Step 2 of 5");
     expect(wrapper.get("#wizard-joined").text()).toBe("✓ You joined the network \"family\"");
     expect(wrapper.find("#wizard-back").exists()).toBe(false);
   });
 
-  it("opens the scope question as step 2 of 5", () => {
+  it("opens the scope question as step 3 of 5 after the exit step", () => {
     const { wrapper } = mount({ mark: "browser" });
     expect(step(wrapper)).toBe("choices");
     expect(rows(wrapper), "no row below the open question").toEqual(["scope"]);
-    expect(progress(wrapper)).toBe("Step 2 of 5");
+    expect(progress(wrapper)).toBe("Step 3 of 5");
     expect(wrapper.get("#wizard-q-scope").text()).toBe("Where should Mesh Town open sites?");
     expect(tiles(wrapper, "scope-seg")).toEqual(["All apps on this computer (recommended)", "Only in one browser"]);
   });
 
-  it("shows the joined line on the questions page only", async () => {
-    const { wrapper } = mount({ mark: "browser", scope: "system", label: "family" });
+  it("shows the joined line on the exit screen only", async () => {
+    const { wrapper } = mount({ mark: "exit", scope: "system", label: "family" });
     expect(wrapper.get("#wizard-joined").text()).toContain("✓ You joined the network");
     await click(wrapper, "#wizard-next");
     expect(wrapper.find("#wizard-joined").exists()).toBe(false);
@@ -55,18 +55,33 @@ describe("SetupWizard > start", () => {
   it("a remembered scope counts as answered: every row down to the instruction is open", () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
     expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
-    expect(progress(wrapper)).toBe("Step 4 of 5");
-  });
-
-  it("a finished setup opens the scope question again instead of jumping ahead", () => {
-    const { wrapper } = mount({ mark: "done" });
-    expect(cursor(wrapper)).toBe("scope");
-  });
-
-  it("the exit mark opens the exit screen", () => {
-    const { wrapper } = mount({ mark: "exit" });
-    expect(step(wrapper)).toBe("exit");
     expect(progress(wrapper)).toBe("Step 5 of 5");
+  });
+
+  it("a finished setup opens the exit screen again instead of jumping ahead", () => {
+    const { wrapper } = mount({ mark: "done" });
+    expect(cursor(wrapper)).toBe("exit");
+  });
+
+  it("the exit mark opens the exit screen, even with a remembered scope", () => {
+    const { wrapper } = mount({ mark: "exit", scope: "system" });
+    expect(step(wrapper)).toBe("exit");
+    expect(progress(wrapper)).toBe("Step 2 of 5");
+  });
+
+  it("closed on the exit screen, the wizard comes back to the exit screen; closed after it, to the questions", async () => {
+    const { wrapper } = mount({ mark: "browser", scope: "system" });
+    await click(wrapper, "#wizard-strip-exit");
+    expect(localStorage.getItem(MARK_KEY)).toBe("exit");
+    unmountWizard(mounted);
+    const again = mount({ mark: localStorage.getItem(MARK_KEY), scope: "system" });
+    expect(step(again.wrapper)).toBe("exit");
+    await click(again.wrapper, "#wizard-next");
+    expect(localStorage.getItem(MARK_KEY)).toBe("browser");
+    unmountWizard(mounted);
+    const last = mount({ mark: localStorage.getItem(MARK_KEY), scope: "system" });
+    expect(step(last.wrapper)).toBe("choices");
+    expect(cursor(last.wrapper)).toBe("guide");
   });
 });
 
@@ -75,14 +90,14 @@ describe("SetupWizard > scope", () => {
     const { wrapper } = mount({ mark: "browser" });
     await click(wrapper, "#scope-system");
     expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
-    expect(progress(wrapper)).toBe("Step 4 of 5");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
   });
 
   it("browser choice swaps the system question for the browser one, step count stays 5", async () => {
     const { wrapper } = mount({ mark: "browser" });
     await click(wrapper, "#scope-browser");
     expect(rows(wrapper)).toEqual(["scope", "browser", "guide"]);
-    expect(progress(wrapper)).toBe("Step 4 of 5");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
   });
 
   it("a choice is remembered for the next time", async () => {
@@ -105,11 +120,10 @@ describe("SetupWizard > scope", () => {
     expect(pressedTiles(wrapper, "scope-seg")).toEqual([]);
   });
 
-  it("skip goes to the exit screen", async () => {
+  it("skip ends the setup: the scope question is the last step", async () => {
     const { wrapper } = mount({ mark: "browser" });
     await click(wrapper, "#wizard-skip");
-    expect(step(wrapper)).toBe("exit");
-    expect(progress(wrapper)).toBe("Step 3 of 3");
+    expect(localStorage.getItem(MARK_KEY)).toBe("done");
   });
 
   it("skip does not remember a scope", async () => {
@@ -135,7 +149,7 @@ describe("SetupWizard > system and browser", () => {
       expect(rows(wrapper), os).toEqual(["scope", "os", "guide"]);
       expect(wrapper.find("#browser-seg").exists(), os).toBe(false);
     }
-    expect(progress(wrapper)).toBe("Step 4 of 5");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
   });
 
   it.each([
@@ -161,7 +175,7 @@ describe("SetupWizard > system and browser", () => {
     const { wrapper } = mount({ mark: "browser", scope: "browser" });
     await toGuide(wrapper, { browser: "other" });
     expect(cursor(wrapper)).toBe("guide");
-    expect(progress(wrapper)).toBe("Step 4 of 5");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
   });
 
   it("an answer in an upper row keeps the rows below and does not move the cursor", async () => {
@@ -180,31 +194,29 @@ describe("SetupWizard > system and browser", () => {
 });
 
 describe("SetupWizard > Back", () => {
-  it("back returns to the previous answer kept pressed", async () => {
+  it("the strip returns from the questions to the exit screen, the answers stay pressed", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "browser" });
     await toGuide(wrapper, { browser: "firefox" });
+    await click(wrapper, "#wizard-strip-exit");
+    expect(step(wrapper)).toBe("exit");
     await click(wrapper, "#wizard-next");
-    await click(wrapper, "#wizard-back");
     expect(step(wrapper)).toBe("choices");
     expect(cursor(wrapper)).toBe("guide");
     expect(pressedTiles(wrapper, "browser-seg")).toEqual(["firefox"]);
   });
 
-  it("back through the browser question returns to the system chosen before", async () => {
+  it("back through the exit screen keeps the system chosen before", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
     await toGuide(wrapper, { os: "windows" });
+    await click(wrapper, "#wizard-strip-exit");
     await click(wrapper, "#wizard-next");
-    await click(wrapper, "#wizard-back");
     expect(rows(wrapper)).toContain("os");
     expect(pressedTiles(wrapper, "os-seg")).toEqual(["windows"]);
   });
 
-  it("back from the exit screen after a skip returns to the scope question", async () => {
-    const { wrapper } = mount({ mark: "browser" });
-    await click(wrapper, "#wizard-skip");
-    await click(wrapper, "#wizard-back");
-    expect(cursor(wrapper)).toBe("scope");
-    expect(pressedTiles(wrapper, "scope-seg")).toEqual([]);
+  it("the exit screen has Back only when the node has no network yet", () => {
+    const { wrapper } = mount({ mark: "exit" });
+    expect(wrapper.find("#wizard-back").exists()).toBe(false);
   });
 
   it("the questions page has no Back, however far it is open", () => {
@@ -214,29 +226,37 @@ describe("SetupWizard > Back", () => {
 });
 
 describe("SetupWizard > exit", () => {
-  it("entering exit writes the exit mark", async () => {
+  it("entering exit writes the exit mark, going past it writes the browser mark", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
     await toGuide(wrapper);
     expect(localStorage.getItem(MARK_KEY), "not before the exit screen").toBe("browser");
-    await click(wrapper, "#wizard-next");
+    await click(wrapper, "#wizard-strip-exit");
     expect(step(wrapper)).toBe("exit");
     expect(localStorage.getItem(MARK_KEY)).toBe("exit");
+    await click(wrapper, "#wizard-next");
+    expect(localStorage.getItem(MARK_KEY)).toBe("browser");
   });
 
-  it("the last button is Finish", () => {
+  it("exit is next, not finish: the button on the exit screen is Next", () => {
     const { wrapper } = mount({ mark: "exit" });
+    expect(wrapper.get("#wizard-next").text()).toBe("Next");
+  });
+
+  it("the last button, on the instruction, is Finish", () => {
+    const { wrapper } = mount({ mark: "browser", scope: "system" });
     expect(wrapper.get("#wizard-next").text()).toBe("Finish");
   });
 
   it("finish writes done", async () => {
-    const { wrapper } = mount({ mark: "exit" });
+    const { wrapper } = mount({ mark: "browser", scope: "system" });
     await click(wrapper, "#wizard-next");
     expect(localStorage.getItem(MARK_KEY)).toBe("done");
   });
 
   it("finish opens overview", async () => {
     localStorage.clear();
-    localStorage.setItem(MARK_KEY, "exit");
+    localStorage.setItem(MARK_KEY, "browser");
+    localStorage.setItem(SCOPE_KEY, "system");
     mounted = mountSection(HomeSection, { config: baseConfig(), state: baseState(WITH_PROXY) });
     await mounted.wrapper.get("#home-tab-wizard").trigger("click");
     await click(mounted.wrapper, "#wizard-next");
@@ -247,11 +267,11 @@ describe("SetupWizard > exit", () => {
 
 describe("SetupWizard > the step counter", () => {
   it("counts the open step of the all-apps path", async () => {
-    const { wrapper } = mount({ mark: "browser", scope: "system" });
+    const { wrapper } = mount({ mark: "exit", scope: "system" });
     const seen = [cursor(wrapper) + ":" + progress(wrapper)];
     await click(wrapper, "#wizard-next");
     seen.push(cursor(wrapper) + ":" + progress(wrapper));
-    expect(seen).toEqual(["guide:Step 4 of 5", "exit:Step 5 of 5"]);
+    expect(seen).toEqual(["exit:Step 2 of 5", "guide:Step 5 of 5"]);
   });
 });
 
@@ -265,9 +285,9 @@ describe("SetupWizard > focus", () => {
     expect(document.activeElement).toBe(wrapper.get("#wizard-q-guide").element);
   });
 
-  it("moves to the heading of the exit screen after Next", async () => {
+  it("moves to the heading of the exit screen after a click on its strip step", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
-    await wrapper.get("#wizard-next").trigger("click");
+    await wrapper.get("#wizard-strip-exit").trigger("click");
     await nextTick();
     await flushPromises();
     expect(document.activeElement).toBe(wrapper.get("#wizard-q").element);
@@ -275,17 +295,17 @@ describe("SetupWizard > focus", () => {
 });
 
 describe("SetupWizard > proxy off", () => {
-  it("proxy off shows the settings hint and three steps", async () => {
+  it("proxy off shows the settings hint and three steps, the scope step is the last", async () => {
     const { wrapper } = mount({ mark: "browser", proxyOn: false });
     expect(cursor(wrapper)).toBe("scope");
-    expect(progress(wrapper)).toBe("Step 2 of 3");
+    expect(progress(wrapper)).toBe("Step 3 of 3");
     expect(wrapper.get("#proxy-hint").text()).toContain("The browser proxy is off");
     expect(wrapper.get("#proxy-hint a").attributes("href")).toBe("#settings");
     expect(wrapper.find("#scope-seg").exists()).toBe(false);
     expect(wrapper.find("#wizard-skip").exists()).toBe(false);
+    expect(wrapper.get("#wizard-next").text()).toBe("Finish");
     await click(wrapper, "#wizard-next");
-    expect(step(wrapper)).toBe("exit");
-    expect(progress(wrapper)).toBe("Step 3 of 3");
+    expect(localStorage.getItem(MARK_KEY)).toBe("done");
   });
 });
 
@@ -299,10 +319,11 @@ describe("SetupWizard > a page storage that refuses to write", () => {
 
   it("storage errors do not stop the wizard: the exit mark and Finish", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system", storage: brokenStorage() });
-    await toGuide(wrapper);
-    await click(wrapper, "#wizard-next");
+    await click(wrapper, "#wizard-strip-exit");
     expect(step(wrapper)).toBe("exit");
     await click(wrapper, "#wizard-next");
-    expect(step(wrapper), "Finish starts the wizard over: the cursor is derived from the answers again").toBe("choices");
+    expect(step(wrapper)).toBe("choices");
+    await click(wrapper, "#wizard-next");
+    expect(step(wrapper), "Finish starts the wizard over: the cursor is derived from the answers again").toBe("exit");
   });
 });

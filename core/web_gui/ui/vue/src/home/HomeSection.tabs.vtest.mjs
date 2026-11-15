@@ -50,14 +50,15 @@ describe("HomeSection > tabs, no network", () => {
 });
 
 describe("HomeSection > tabs, network exists, no label", () => {
-  it("\"Main\" is open; \"Setup\" shows the second screen, \"Next\" leads to the exit screen, \"Finish\" returns to \"Main\"", async () => {
+  it("\"Main\" is open; \"Setup\" shows the exit screen, \"Next\" leads to the questions, \"Finish\" returns to \"Main\"", async () => {
     const { wrapper } = mountHome(baseState());
     expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
     await tab(wrapper, "wizard").trigger("click");
-    expect(stepOf(wrapper)).toBe("choices");
-    expect(wrapper.get("#wizard-joined").text()).toContain("✓ You joined the network");
-    await clickById(wrapper, "#wizard-next");
     expect(stepOf(wrapper)).toBe("exit");
+    expect(wrapper.get("#wizard-joined").text()).toContain("✓ You joined the network");
+    expect(wrapper.get("#wizard-next").text()).toBe("Next");
+    await clickById(wrapper, "#wizard-next");
+    expect(stepOf(wrapper)).toBe("choices");
     expect(tab(wrapper, "wizard").attributes("aria-selected")).toBe("true");
     expect(wrapper.get("#wizard-next").text()).toBe("Finish");
     await clickById(wrapper, "#wizard-next");

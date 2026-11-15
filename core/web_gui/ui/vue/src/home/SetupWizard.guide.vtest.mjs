@@ -134,7 +134,7 @@ describe("SetupWizard > guide > only in one browser", () => {
     await click(wrapper, "#guide-to-system");
     expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
     expect(document.activeElement).toBe(wrapper.get("#wizard-q-os").element);
-    expect(progress(wrapper)).toBe("Step 4 of 5");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
     expect(localStorage.getItem(SCOPE_KEY)).toBe("system");
   });
 });

@@ -121,7 +121,7 @@ function atTheLimit(form: JoinForm): JoinResult {
 }
 
 // The "Three steps" setup — only for a node that joined its first network; switching from "Settings" (`mark` null) does not wake it.
-export const markFor = (store: Store): SetupMark | null => (store.state && store.state.network ? null : "browser");
+export const markFor = (store: Store): SetupMark | null => (store.state && store.state.network ? null : "exit");
 
 const writeMark = (mark: SetupMark | null, deps: HomeDeps) => mark && writeSetupMark(mark, deps.storage);
 

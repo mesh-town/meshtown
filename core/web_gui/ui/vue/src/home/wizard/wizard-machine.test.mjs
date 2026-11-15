@@ -5,7 +5,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { browserTiles, defaultBrowser, guideFor } from "./guide-content.ts";
 import { applyEvent, ctxOf, freshCursor, guideOf, shownBrowser, shownOs, stepOf } from "./wizard-machine.ts";
-import { stripSteps, visibleRows, wizardPath } from "./wizard-steps.ts";
+import { screenOf, stripSteps, visibleRows, wizardPath } from "./wizard-steps.ts";
 
 const STEPS = ["join", "scope", "os", "browser", "guide", "exit", "connect"];
 const env = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, mark: null, lan: "none", uaOs: "mac", uaBrowser: "chrome", ...over });
@@ -47,7 +47,7 @@ function check(before, after, e, ev) {
   assert.equal(strip.filter((t) => t.state === "current").length, 1, "one current step " + label);
   const { rows, os, browser } = rowsPressed(after, e);
   if (rows.includes("browser")) assert.ok(browserTiles(shownOs(after, e)).some(([id]) => id === shownBrowser(after, e)), "the pressed browser has a tile " + label);
-  if (rows.includes("guide") && e.lan !== "router") assert.notEqual(after.scope, null, "the instruction has a scope " + label);
+  if (rows.includes("guide") && screenOf(step) === "choices" && e.lan !== "router") assert.notEqual(after.scope, null, "the instruction has a scope " + label);
   const question = ctx.proxyOn && !after.skipped;
   if (e.lan === "router" && question) assert.ok(!rows.includes("scope") && !rows.includes("browser"), "no scope or browser row on a router " + label);
   if (rows.includes("guide")) assert.deepEqual(guideOf(after, e), guideFor(after.scope ?? "system", os, browser, e.lan), "the instruction follows the rows " + label);
@@ -85,9 +85,10 @@ describe("wizard machine: chains of events", () => {
 
 describe("wizard machine: the cases of the dossier", () => {
   it("given one browser, Safari, then Set up for all apps, then the instruction is for all apps and has no browser row", () => {
-    const s = run(state(), env(), [{ kind: "scope", value: "browser" }, { kind: "browser", value: "safari" }, { kind: "toSystem" }]);
-    assert.equal(guideOf(s, env()).title, "Set up all apps on macOS");
-    assert.equal(stepOf(s, env()), "guide");
+    const past = env({ mark: "browser" });
+    const s = run(state(), past, [{ kind: "scope", value: "browser" }, { kind: "browser", value: "safari" }, { kind: "toSystem" }]);
+    assert.equal(guideOf(s, past).title, "Set up all apps on macOS");
+    assert.equal(stepOf(s, past), "guide");
     assert.ok(!visibleRows(ctxOf(s, env()), "guide").includes("browser"));
   });
 
@@ -105,24 +106,51 @@ describe("wizard machine: the cases of the dossier", () => {
     assert.equal(shownOs({ ...answers, scope: "system" }, env()), "windows");
   });
 
-  it("given remembered answers and a fresh cursor, then the cursor is the instruction with the picked browser", () => {
+  it("given remembered answers and a fresh cursor, then the cursor is exit, and past it the instruction with the picked browser", () => {
     const answers = state({ scope: "browser", pick: "firefox" });
     const s = { ...answers, ...freshCursor() };
-    assert.equal(stepOf(s, env()), "guide");
+    assert.equal(stepOf(s, env()), "exit", "no mark: the exit step comes first");
+    assert.equal(stepOf(s, env({ mark: "browser" })), "guide");
     assert.equal(shownBrowser(s, env()), "firefox");
   });
 
   it("given the proxy off and on again, then the cursor is where it was", () => {
-    const s = run(state(), env(), [{ kind: "scope", value: "system" }]);
-    assert.equal(stepOf(s, env()), "guide");
-    assert.equal(stepOf(s, env({ proxyOn: false })), "scope");
-    assert.equal(stepOf(s, env()), "guide");
+    const past = env({ mark: "browser" });
+    const s = run(state(), past, [{ kind: "scope", value: "system" }]);
+    assert.equal(stepOf(s, past), "guide");
+    assert.equal(stepOf(s, env({ proxyOn: false, mark: "browser" })), "scope");
+    assert.equal(stepOf(s, past), "guide");
   });
 
   it("given a pick that the shown system has no tile for, then the instruction is the system default's", () => {
     const answers = state({ scope: "browser", pick: "safari" });
     const g = guideOf(answers, env({ uaOs: "windows", uaBrowser: "edge" }));
     assert.equal(g.title, "Set up Edge");
+  });
+});
+
+describe("wizard machine: the exit step comes first", () => {
+  it("given the exit step, then Next opens the first question and settles past the answered rows", () => {
+    const e = env();
+    const first = run(state({ scope: "system" }), e, [{ kind: "next" }]);
+    assert.equal(stepOf(first, e), "guide");
+    const fresh = run(state(), e, [{ kind: "next" }]);
+    assert.equal(stepOf(fresh, e), "scope");
+  });
+
+  it("given the questions page, then Back from the first question goes to exit and the strip returns to the rows", () => {
+    const e = env({ mark: "browser" });
+    const s = run(state({ scope: "system", visited: ["guide"] }), e, [{ kind: "strip", id: "exit" }]);
+    assert.equal(stepOf(s, e), "exit");
+    const back = run(s, e, [{ kind: "strip", id: "guide" }]);
+    assert.equal(stepOf(back, e), "guide");
+  });
+
+  it("given the skipped question, then the path ends on the scope step", () => {
+    const e = env({ mark: "browser" });
+    const s = run(state(), e, [{ kind: "skip" }]);
+    assert.deepEqual(wizardPath(ctxOf(s, e)), ["join", "exit", "scope"]);
+    assert.equal(stepOf(s, e), "scope");
   });
 });
 
@@ -135,8 +163,9 @@ describe("wizard machine: on a router", () => {
     assert.equal(guideOf(s, router).title, "Connect an iPhone or iPad to the router");
   });
 
-  it("given a router and a fresh cursor, then the cursor is the instruction", () => {
-    assert.equal(stepOf(state(), router), "guide");
+  it("given a router and a fresh cursor, then the cursor is exit, and after the exit step the instruction", () => {
+    assert.equal(stepOf(state(), router), "exit");
+    assert.equal(stepOf(state(), env({ lan: "router", mark: "browser" })), "guide");
   });
 
   it("given a router, then the detected system is shown until one is chosen", () => {

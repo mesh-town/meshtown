@@ -10,6 +10,20 @@ import {
 const ctx = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, scope: "system", os: "mac", skipped: false, router: false, ...over });
 
 describe("wizardPath", () => {
+  it("exit right after join on desktop", () => {
+    for (const c of [ctx(), ctx({ scope: "browser" }), ctx({ proxyOn: false }), ctx({ skipped: true, scope: null }), ctx({ scope: "browser", os: "ios" })]) {
+      assert.deepEqual(wizardPath(c).slice(0, 2), ["join", "exit"]);
+    }
+  });
+
+  it("router path puts exit second", () => {
+    assert.deepEqual(wizardPath(ctx({ router: true })), ["join", "exit", "os", "guide"]);
+  });
+
+  it("app path unchanged", () => {
+    assert.deepEqual(wizardPath(ctx({ inApp: true, router: true })), ["join", "exit", "connect"]);
+  });
+
   describe("in the app", () => {
     it("given the app page, then the path is join, exit, connect", () => {
       assert.deepEqual(wizardPath(ctx({ inApp: true })), ["join", "exit", "connect"]);
@@ -17,24 +31,24 @@ describe("wizardPath", () => {
   });
 
   describe("proxy is off", () => {
-    it("given the proxy is off, then the path is join, scope, exit", () => {
-      assert.deepEqual(wizardPath(ctx({ proxyOn: false })), ["join", "scope", "exit"]);
+    it("given the proxy is off, then the path is join, exit, scope", () => {
+      assert.deepEqual(wizardPath(ctx({ proxyOn: false })), ["join", "exit", "scope"]);
     });
   });
 
   describe("the scope question was skipped", () => {
-    it("given skipped, then the path is join, scope, exit", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: null, skipped: true })), ["join", "scope", "exit"]);
+    it("given skipped, then the path is join, exit, scope", () => {
+      assert.deepEqual(wizardPath(ctx({ scope: null, skipped: true })), ["join", "exit", "scope"]);
     });
   });
 
   describe("scope is the whole system", () => {
     it("given system on macOS, then the path has os and guide, no browser", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "mac" })), ["join", "scope", "os", "guide", "exit"]);
+      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "mac" })), ["join", "exit", "scope", "os", "guide"]);
     });
 
     it("given no answer yet on macOS, then the path is the recommended one without browser", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: null, os: "mac" })), ["join", "scope", "os", "guide", "exit"]);
+      assert.deepEqual(wizardPath(ctx({ scope: null, os: "mac" })), ["join", "exit", "scope", "os", "guide"]);
     });
 
     it("given system on any computer, then the path has no browser step", () => {
@@ -44,21 +58,21 @@ describe("wizardPath", () => {
     });
 
     it("given system on Android, then there is no browser step", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "android" })), ["join", "scope", "os", "guide", "exit"]);
+      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "android" })), ["join", "exit", "scope", "os", "guide"]);
     });
   });
 
   describe("scope is one browser", () => {
-    it("given browser on macOS, then the path is scope, browser, guide, exit", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "mac" })), ["join", "scope", "browser", "guide", "exit"]);
+    it("given browser on macOS, then the path is exit, scope, browser, guide", () => {
+      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "mac" })), ["join", "exit", "scope", "browser", "guide"]);
     });
 
     it("given browser on Linux, then there is no os step", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "linux" })), ["join", "scope", "browser", "guide", "exit"]);
+      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "linux" })), ["join", "exit", "scope", "browser", "guide"]);
     });
 
     it("given browser on iOS, then there are neither os nor browser steps", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "ios" })), ["join", "scope", "guide", "exit"]);
+      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "ios" })), ["join", "exit", "scope", "guide"]);
     });
   });
 });
@@ -80,20 +94,28 @@ describe("startStep", () => {
     assert.equal(startStep(ctx({ scope: null }), "browser"), "scope");
   });
 
-  it("given no mark and no scope answer, then the start is scope", () => {
-    assert.equal(startStep(ctx({ scope: null }), null), "scope");
+  it("given no mark, then the start is exit", () => {
+    assert.equal(startStep(ctx({ scope: null }), null), "exit");
   });
 
-  it("given an unknown mark, then it is treated as no mark and the start is scope", () => {
-    assert.equal(startStep(ctx({ scope: null }), "garbage"), "scope");
+  it("given an unknown mark, then it is treated as no mark and the start is exit", () => {
+    assert.equal(startStep(ctx({ scope: null }), "garbage"), "exit");
   });
 
-  it("given a remembered scope, then the answered rows are passed and the start is the instruction", () => {
-    assert.equal(startStep(ctx(), null), "guide");
+  it("given the browser mark and a remembered scope, then the answered rows are passed and the start is the instruction", () => {
+    assert.equal(startStep(ctx(), "browser"), "guide");
   });
 
-  it("given the proxy off, then the start is scope even with a remembered answer", () => {
-    assert.equal(startStep(ctx({ proxyOn: false }), null), "scope");
+  it("given the browser mark and the proxy off, then the start is scope even with a remembered answer", () => {
+    assert.equal(startStep(ctx({ proxyOn: false }), "browser"), "scope");
+  });
+
+  it("given the exit mark and a remembered scope, then the start is still exit", () => {
+    assert.equal(startStep(ctx(), "exit"), "exit");
+  });
+
+  it("given the browser mark on a router, then the start is the system step", () => {
+    assert.equal(startStep(ctx({ router: true }), "browser"), "guide");
   });
 });
 
@@ -103,7 +125,7 @@ describe("validStep", () => {
   });
 
   it("given the join step after the network appeared, then the wizard moves to the start step", () => {
-    assert.equal(validStep(ctx({ scope: null }), "join", null), "scope");
+    assert.equal(validStep(ctx({ scope: null }), "join", "browser"), "scope");
   });
 
   it("given the join step and the exit mark after the network appeared, then it moves to exit", () => {
@@ -111,7 +133,7 @@ describe("validStep", () => {
   });
 
   it("given the browser step after the proxy was turned off, then it falls back to scope", () => {
-    assert.equal(validStep(ctx({ proxyOn: false }), "browser", null), "scope");
+    assert.equal(validStep(ctx({ proxyOn: false }), "browser", "browser"), "scope");
   });
 
   it("given the join step and no network, then it stays on join", () => {
@@ -119,7 +141,7 @@ describe("validStep", () => {
   });
 
   it("given the instruction and no scope answer, then the cursor goes to the start step", () => {
-    assert.equal(validStep(ctx({ scope: null }), "guide", null), "scope");
+    assert.equal(validStep(ctx({ scope: null }), "guide", "browser"), "scope");
   });
 });
 
@@ -136,16 +158,24 @@ describe("nextStep and prevStep", () => {
     assert.equal(prevStep(ctx(), "os"), "scope");
   });
 
-  it("given the network and the scope step, then there is no previous step", () => {
-    assert.equal(prevStep(ctx(), "scope"), null);
+  it("given the network and the exit step, then there is no previous step", () => {
+    assert.equal(prevStep(ctx(), "exit"), null);
   });
 
-  it("given no network and the scope step, then prev is join", () => {
-    assert.equal(prevStep(ctx({ hasNet: false }), "scope"), "join");
+  it("given the network and the scope step, then prev is exit", () => {
+    assert.equal(prevStep(ctx(), "scope"), "exit");
   });
 
-  it("given the exit step, then there is no next step", () => {
-    assert.equal(nextStep(ctx(), "exit"), null);
+  it("given no network and the exit step, then prev is join", () => {
+    assert.equal(prevStep(ctx({ hasNet: false }), "exit"), "join");
+  });
+
+  it("given the instruction, then there is no next step", () => {
+    assert.equal(nextStep(ctx(), "guide"), null);
+  });
+
+  it("given the exit step on a computer, then next is scope", () => {
+    assert.equal(nextStep(ctx(), "exit"), "scope");
   });
 
   it("given a step outside the path, then next and prev are null", () => {
@@ -156,8 +186,8 @@ describe("nextStep and prevStep", () => {
 });
 
 describe("stepProgress", () => {
-  it("given the guide step on the all-apps path, then it is step 4 of 5", () => {
-    assert.deepEqual(stepProgress(ctx(), "guide"), { n: 4, m: 5 });
+  it("given the guide step on the all-apps path, then it is step 5 of 5", () => {
+    assert.deepEqual(stepProgress(ctx(), "guide"), { n: 5, m: 5 });
   });
 
   it("given the join step, then it counts as step 1", () => {
@@ -186,16 +216,27 @@ describe("navKind", () => {
     assert.deepEqual([navKind(ctx(), "os"), navKind(ctx(), "browser")], [null, null]);
   });
 
-  it("given the instruction, then the button is next", () => {
-    assert.equal(navKind(ctx(), "guide"), "next");
+  it("given the instruction, then the button is finish", () => {
+    assert.equal(navKind(ctx(), "guide"), "finish");
   });
 
-  it("given the scope step with the proxy off, then the button is next", () => {
-    assert.equal(navKind(ctx({ proxyOn: false, scope: null }), "scope"), "next");
+  it("given the scope step with the proxy off, then it is the last step and the button is finish", () => {
+    assert.equal(navKind(ctx({ proxyOn: false, scope: null }), "scope"), "finish");
   });
 
-  it("given the exit step on a computer, then the button is finish", () => {
-    assert.equal(navKind(ctx(), "exit"), "finish");
+  it("exit is next not finish on desktop", () => {
+    assert.equal(navKind(ctx(), "exit"), "next");
+    assert.equal(navKind(ctx({ proxyOn: false }), "exit"), "next");
+    assert.equal(navKind(ctx({ router: true }), "exit"), "next");
+  });
+
+  it("finish is on the last step of the path", () => {
+    const paths = [ctx(), ctx({ scope: "browser" }), ctx({ proxyOn: false }), ctx({ router: true }), ctx({ skipped: true, scope: null })];
+    for (const c of paths) {
+      const path = wizardPath(c);
+      const finishing = path.filter((id) => navKind(c, id) === "finish");
+      assert.deepEqual(finishing, [path[path.length - 1]], path.join());
+    }
   });
 
   it("given the exit step in the app, then the button is next", () => {
@@ -212,8 +253,12 @@ describe("markOnEnter", () => {
     assert.equal(markOnEnter("exit"), "exit");
   });
 
-  it("given the guide step, then there is no mark", () => {
-    assert.equal(markOnEnter("guide"), null);
+  it("given a step after exit, then the mark is browser", () => {
+    assert.deepEqual(["scope", "os", "browser", "guide"].map(markOnEnter), ["browser", "browser", "browser", "browser"]);
+  });
+
+  it("given join or connect, then there is no mark", () => {
+    assert.deepEqual([markOnEnter("join"), markOnEnter("connect")], [null, null]);
   });
 });
 
@@ -230,19 +275,16 @@ describe("isPhoneOs", () => {
 
 describe("joinedLineOn", () => {
   it("given the network and the second step of the path, then the joined line is shown", () => {
-    assert.equal(joinedLineOn(ctx(), "scope"), true);
+    assert.equal(joinedLineOn(ctx(), "exit"), true);
   });
 
-  it("given the network and a later row of the questions page, then the joined line is still shown", () => {
-    assert.equal(joinedLineOn(ctx(), "os"), true);
-  });
-
-  it("given the network and the exit screen, then the joined line is not shown", () => {
-    assert.equal(joinedLineOn(ctx(), "exit"), false);
+  it("given the network and the questions page, then the joined line is not shown", () => {
+    assert.equal(joinedLineOn(ctx(), "scope"), false);
+    assert.equal(joinedLineOn(ctx(), "os"), false);
   });
 
   it("given no network, then the joined line is not shown", () => {
-    assert.equal(joinedLineOn(ctx({ hasNet: false }), "scope"), false);
+    assert.equal(joinedLineOn(ctx({ hasNet: false }), "exit"), false);
   });
 });
 
@@ -251,23 +293,23 @@ describe("stripSteps", () => {
 
   it("given the os step on macOS, then joined and scope are done, the rest locked", () => {
     assert.deepEqual(states(ctx(), "os"), [
-      "join:done", "scope:done", "os:current", "guide:locked", "exit:locked",
+      "join:done", "exit:done", "scope:done", "os:current", "guide:locked",
     ]);
   });
 
   it("given a step right of the current one was seen, then it is open", () => {
     assert.deepEqual(states(ctx({ scope: "browser" }), "scope", ["scope", "browser"]), [
-      "join:done", "scope:current", "browser:open", "guide:locked", "exit:locked",
+      "join:done", "exit:done", "scope:current", "browser:open", "guide:locked",
     ]);
   });
 
   it("given the scope switched to one browser, then the os step leaves the strip", () => {
     const ids = stripSteps(ctx({ scope: "browser" }), "scope", new Set(["os"])).map((t) => t.id);
-    assert.deepEqual(ids, ["join", "scope", "browser", "guide", "exit"]);
+    assert.deepEqual(ids, ["join", "exit", "scope", "browser", "guide"]);
   });
 
-  it("given the question was skipped, then the strip is join, scope, exit", () => {
-    assert.deepEqual(states(ctx({ scope: null, skipped: true }), "exit", ["exit"]), ["join:done", "scope:done", "exit:current"]);
+  it("given the question was skipped, then the strip is join, exit, scope", () => {
+    assert.deepEqual(states(ctx({ scope: null, skipped: true }), "scope", ["scope"]), ["join:done", "exit:done", "scope:current"]);
   });
 
   it("given the app page, then the strip is join, exit, connect", () => {
@@ -342,9 +384,9 @@ describe("settleStep", () => {
 });
 
 describe("on a router", () => {
-  it("given the proxy on, then the path is join, os, guide, exit whatever the scope", () => {
+  it("given the proxy on, then the path is join, exit, os, guide whatever the scope", () => {
     for (const scope of [null, "system", "browser"]) {
-      assert.deepEqual(wizardPath(ctx({ router: true, scope })), ["join", "os", "guide", "exit"], String(scope));
+      assert.deepEqual(wizardPath(ctx({ router: true, scope })), ["join", "exit", "os", "guide"], String(scope));
     }
   });
 
@@ -352,11 +394,11 @@ describe("on a router", () => {
     assert.equal(validStep(ctx({ router: true, scope: null }), "guide", null), "guide");
   });
 
-  it("given the proxy off, then the path is join, scope, exit", () => {
-    assert.deepEqual(wizardPath(ctx({ router: true, proxyOn: false })), ["join", "scope", "exit"]);
+  it("given the proxy off, then the path is join, exit, scope", () => {
+    assert.deepEqual(wizardPath(ctx({ router: true, proxyOn: false })), ["join", "exit", "scope"]);
   });
 
   it("given no router, no scope and the cursor on guide, then the cursor goes back to the start", () => {
-    assert.notEqual(validStep(ctx({ scope: null }), "guide", null), "guide");
+    assert.notEqual(validStep(ctx({ scope: null }), "guide", "browser"), "guide");
   });
 });
