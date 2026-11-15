@@ -13,7 +13,6 @@ import DiagnosticsSection from "../network/DiagnosticsSection.vue";
 import PeersSection from "../peers/PeersSection.vue";
 import LoginScreen from "../login/LoginScreen.vue";
 import SetupScreen from "../login/SetupScreen.vue";
-import { ownOverloadTarget } from "../peers/own-overload.ts";
 import { totalVotes, votesTarget } from "../peers/net-votes.ts";
 import { useAuth } from "../login/use-auth.ts";
 import SettingsSection from "../settings/SettingsSection.vue";
@@ -22,6 +21,7 @@ import ConnStrip from "./ConnStrip.vue";
 import IdentityStrip from "./IdentityStrip.vue";
 import TabsNav from "./TabsNav.vue";
 import TopBar from "./TopBar.vue";
+import OverloadStrip from "./OverloadStrip.vue";
 import { inAppPage } from "../home/browser-setup.ts";
 import { sectionViews, viewTitle } from "./nav.ts";
 import type { SectionId } from "./nav.ts";
@@ -49,7 +49,6 @@ useFavicon(store);
 // Join requests waiting for this admin to let them in, summed over the networks.
 const votes = computed(() => totalVotes(store));
 const votesHref = computed(() => votesTarget(store));
-const overloadHref = computed(() => ownOverloadTarget(store));
 const { screen, hasSession, noPassword, loggedIn, passwordSet } = useAuth(conn);
 
 function onLoggedIn(): void {
@@ -67,7 +66,8 @@ function onLoggedIn(): void {
     <div v-if="screen === 'app'" class="layout">
       <TabsNav :active="store.activeSection" :dirty="store.settingsDirty" :votes="votes" />
       <div class="content-col">
-        <TopBar :status="status" :votes="votes" :href="votesHref" :overload-href="overloadHref" />
+        <TopBar :status="status" :votes="votes" :href="votesHref" />
+        <OverloadStrip />
         <main class="page">
           <NoticeBanner v-if="store.activeSection === 'home' || store.activeSection === 'peers'" />
           <section
