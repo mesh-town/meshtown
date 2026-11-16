@@ -37,7 +37,7 @@
   .tab.has-dirty::after{content:" · not saved";color:var(--orange);}
 
   .tab-title{font-size:15px;font-weight:600;margin:4px 0 14px;}
-  .tab-title + .hint:not(.nets-hint){margin:-6px 0 12px;}
+  .tab-title + .hint:not(.nets-hint),#settings-root > .hint:first-child{margin:-6px 0 12px;}
 
   .field-label-inline{font-size:12.5px;color:var(--fg-muted);white-space:nowrap;}
   .field-status{font-size:12px;margin-top:4px;}
@@ -52,6 +52,9 @@
     border-radius:10px;
     background:var(--bg-elev);
   }
+  .save-bar .btn-row,.save-bar .hint{margin-top:0;}
+  .save-bar .btn-row{align-items:center;}
+  #settings-writable-reason{flex-basis:100%;min-width:0;overflow-wrap:anywhere;}
   .save-bar.dirty,.save-bar.saved-sticky{
     position:sticky;
     bottom:0;

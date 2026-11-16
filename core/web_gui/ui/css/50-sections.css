@@ -114,6 +114,10 @@
   .setting-desc{color:var(--fg-muted);font-size:12.5px;margin-top:3px;}
   .setting-control{flex-shrink:0;display:flex;align-items:center;gap:8px;}
   .setting-control select,.setting-control .input{width:180px;}
+  .setting-control select{width:auto;min-width:180px;max-width:260px;}
+  .setting-control .btn-sm{padding:7px 14px;font-size:13px;line-height:20px;}
+  .card > .setting-row:last-child{padding-bottom:0;}
+  #settings-expert-details > h3.setting-title{margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--fg-muted);}
 
 
 /* Network members: badges, the row menu, the vote banner, the removed list, the out-of-network card. */

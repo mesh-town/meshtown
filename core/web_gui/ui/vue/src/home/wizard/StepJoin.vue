@@ -46,8 +46,8 @@ async function startCreate(): Promise<void> {
       <p v-if="progress" class="field-error-text" id="join-refused" role="status" aria-live="polite"><strong v-if="lead">{{ lead }}</strong>{{ lead ? " " : "" }}{{ progress.main }}</p>
       <p class="hint">{{ HOME_WIZARD_INVITE_HINT }}</p>
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
-        <button type="button" class="btn" id="home-start-create-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'create'" @click="startCreate">{{ HOME_WIZARD_CREATE_BTN }}</button>
+        <button type="button" :class="j.form.choice ? 'btn' : 'btn btn-primary'" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" :aria-pressed="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
+        <button type="button" class="btn" id="home-start-create-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'create'" :aria-pressed="j.form.choice === 'create'" @click="startCreate">{{ HOME_WIZARD_CREATE_BTN }}</button>
       </div>
       <JoinCard v-if="j.form.choice" :join="j" quiet @attempt="refusal.dismiss" />
     </template>
