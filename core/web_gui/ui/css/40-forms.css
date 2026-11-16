@@ -16,6 +16,8 @@
   .hint{color:var(--fg-muted);font-size:12.5px;margin-top:8px;}
   .hint + :is(label, .btn, .card, .invite-form, .kind-picker, .toggle-inline, #add-net-create-box),
   #add-net-create-box .kind-picker, #you-block .toggle-inline{margin-top:8px;}
+  .hint + :is(form, ol, ul, #find-exit-result){margin-top:12px;}
+  .card > .hint:first-child{margin-top:0;}
   .hint.net-banner{margin-bottom:10px;}
 
   .btn{
@@ -31,6 +33,7 @@
     line-height:20px;
   }
   .btn:hover{border-color:var(--accent);}
+  #home-start-choice .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
   .btn-primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);}
   .btn-danger{border-color:var(--red);color:var(--red);}
   .btn-sm{padding:4px 10px;font-size:12px;line-height:18px;}
@@ -46,6 +49,7 @@
   .opencell .change-hint{margin:0;}
   .btn-x{border:1px solid var(--control-border);background:var(--control-bg);color:var(--fg);padding:7px 14px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
   .btn-x:hover{border-color:var(--red);color:var(--red);}
+  .input:focus-visible,select:focus-visible,textarea:focus-visible,.btn:focus-visible,.link-more:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
 
   .input,textarea,select{

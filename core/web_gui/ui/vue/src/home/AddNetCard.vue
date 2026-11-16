@@ -95,17 +95,19 @@ function cancelled(): void {
     </div>
     <p v-if="limited" class="hint" id="add-net-limit" role="status">{{ ADD_NET_LIMIT_INVITE }}</p>
     <p v-if="!limited" class="hint" id="add-net-stay">{{ stayText(names) }}</p>
-    <InviteForm v-if="!creating" :join="invite" :ids="ids" :button="ADD_NET_BTN" :busy="ADD_NET_BUSY" @done="joined" />
+    <InviteForm v-if="!creating" :join="invite" :ids="ids" :button="ADD_NET_BTN" :busy="ADD_NET_BUSY" @done="joined">
+      <template #actions>
+        <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
+      </template>
+    </InviteForm>
     <div v-else id="add-net-create-box">
       <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>
       <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
       <p class="field-error-text" id="add-net-label-error" role="alert" :hidden="!form.labelError">{{ form.labelError }}</p>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="create">{{ form.busy ? ADD_NET_BUSY : ADD_NET_CREATE_BTN }}</button>
+        <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
       </div>
-    </div>
-    <div class="btn-row">
-      <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
     </div>
     <div v-if="outcome === 'waiting' && form.slot" id="add-net-waiting">
       <JoiningCard :slot="form.slot" @cancelled="cancelled" />

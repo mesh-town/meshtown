@@ -55,6 +55,7 @@ async function go(): Promise<void> {
     <div class="btn-row">
       <button type="button" class="btn btn-primary" :id="ids.button" :disabled="!!form.busy" @click="go">{{ form.busy ? busy ?? HOME_JOIN_BUSY : button ?? HOME_BUTTON_JOIN }}</button>
       <a v-if="inAppPage()" class="btn invite-scan" role="button" :href="SCAN_INVITE_URL">{{ HOME_JOIN_SCAN }}</a>
+      <slot name="actions"></slot>
     </div>
     <p v-if="ids.status" class="hint" :id="ids.status" :hidden="!form.status">{{ form.status }}</p>
     <slot name="after"></slot>

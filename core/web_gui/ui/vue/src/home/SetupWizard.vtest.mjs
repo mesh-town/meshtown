@@ -75,7 +75,7 @@ describe("SetupWizard > join screen, no network", () => {
 });
 
 describe("SetupWizard > join screen > primary button", () => {
-  it("join button stays primary: before a choice", () => {
+  it("join button is primary: before a choice", () => {
     const { wrapper } = mount({ hasNet: false });
     expect(wrapper.get("#home-start-join-btn").classes()).toContain("btn-primary");
   });
@@ -84,7 +84,8 @@ describe("SetupWizard > join screen > primary button", () => {
     const { wrapper } = mount({ hasNet: false });
     await wrapper.get("#home-start-create-btn").trigger("click");
     await nextTick();
-    expect(wrapper.get("#home-start-join-btn").classes(), "join button stays primary: after Create").toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").classes(), "join button is not primary: after Create").not.toContain("btn-primary");
+    expect(wrapper.get("#home-start-create-btn").attributes("aria-pressed")).toBe("true");
     expect(wrapper.get("#create-btn").classes()).toContain("btn-primary");
   });
 
@@ -93,7 +94,8 @@ describe("SetupWizard > join screen > primary button", () => {
     await wrapper.get("#home-start-join-btn").trigger("click");
     await nextTick();
     expect(wrapper.get("#join-btn").classes()).toContain("btn-primary");
-    expect(wrapper.get("#home-start-join-btn").classes(), "join button stays primary: after Join").toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").classes(), "join button is not primary: after Join").not.toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").attributes("aria-pressed")).toBe("true");
     expect(wrapper.get("#home-start-join-btn").attributes("aria-expanded")).toBe("true");
   });
 });

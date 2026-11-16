@@ -7,15 +7,6 @@
   .mini-row{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start;}
   .mini-row > .card{margin-bottom:0;}
   .home-grid > .card{margin-bottom:0;}
-  /* "Network invite" on a wide screen: the name field and the button share one row, the member counter sits in the title row. */
-  @media (min-width:600px){
-    #home-invite{display:grid;grid-template-columns:1fr auto;column-gap:8px;align-items:center;}
-    #home-invite > *{grid-column:1 / -1;}
-    #home-invite > #invite-for-input{grid-column:1;}
-    #home-invite > .btn-row{grid-column:2;margin-top:0;}
-    #home-invite > h2{grid-column:1;grid-row:1;}
-    #home-invite > #home-members-count{grid-column:2;grid-row:1;align-self:start;margin:0;text-align:right;max-width:16em;}
-  }
   .state-panel{display:flex;align-items:flex-start;gap:10px;}
   .state-panel .state-dot{margin-top:5px;flex-shrink:0;}
   .state-dot{width:12px;height:12px;border-radius:50%;background:var(--grey);}
@@ -94,10 +85,11 @@
   }
   #wizard-q:focus{outline:none;}
   #wizard-progress,#wizard-joined,#wizard-q{margin-top:10px;} #wizard-q{margin-bottom:0;} #wizard-screen{margin-top:12px;}
-  #wizard-screen h3 + .hint{margin-top:8px;} #wizard-screen h4{margin:14px 0 0;}
+  #wizard-screen h3 + .hint{margin-top:8px;}
+  #wizard-screen #guide-to-system{margin-top:10px;} #wizard-screen h4{margin:14px 0 0;}
   #wizard-screen ol{margin:10px 0 0;padding-left:20px;} #wizard-screen ol li{margin-top:6px;}
   .wizard-card{position:relative;}
-  #wizard-screen #home-exit-server{margin-top:12px;}
+  #home-exit-server{margin-top:12px;}
   .term{position:relative;border-bottom:1px dotted var(--fg-muted);cursor:help;}
   .term:focus-visible{outline:2px solid var(--accent);}
   .term-tip{display:none;position:absolute;left:var(--tip-shift,0);top:100%;margin-top:4px;z-index:10;background:var(--bg-elev);color:var(--fg);border:1px solid var(--control-border);border-radius:6px;max-width:min(280px,calc(100vw - 48px));width:max-content;padding:6px 8px;font-size:13px;}
