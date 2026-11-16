@@ -52,7 +52,7 @@
 .tab .chip{display:inline-block;margin-left:6px;padding:0 7px;border-radius:10px;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:700;}
 #strip-vote{flex:0 0 auto;white-space:nowrap;color:var(--warn-fg);background:var(--warn-bg);padding:2px 8px;border-radius:10px;font-weight:600;text-decoration:none;}
 .alert{color:var(--red);font-size:14px;margin:0 0 8px;}
-#settings-leave-row{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:8px;}
+#settings-leave-row{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
 #settings-leave-row > h3,#settings-leave-row > .hint{flex-basis:100%;margin:0;}
 #stop-node-btn{margin-top:16px;}h2 + #stop-node-btn{margin-top:0;}
 .member-dialog #confirm-body p + p{margin-top:8px;}
