@@ -12,8 +12,8 @@ import { WIZ_Q_DEVICE, WIZ_QUESTIONS } from "./wizard-texts.ts";
 
 const props = defineProps<{ w: WizardView }>();
 const scopeOptions = [
-  { id: "system", domId: "scope-system", label: SCOPE_SYSTEM },
   { id: "browser", domId: "scope-browser", label: SCOPE_BROWSER },
+  { id: "system", domId: "scope-system", label: SCOPE_SYSTEM },
 ];
 const osOptions = PAC_OS_LIST.map(([id, label]) => ({ id, domId: `os-${id}`, label }));
 const browserOptions = computed(() => browserTiles(props.w.os.value).map(([id, label]) => ({ id, domId: `browser-${id}`, label })));

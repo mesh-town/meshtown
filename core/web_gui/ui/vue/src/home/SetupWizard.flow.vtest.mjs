@@ -42,7 +42,7 @@ describe("SetupWizard > start", () => {
     expect(rows(wrapper), "no row below the open question").toEqual(["scope"]);
     expect(progress(wrapper)).toBe("Step 3 of 5");
     expect(wrapper.get("#wizard-q-scope").text()).toBe("Where should Mesh Town open sites?");
-    expect(tiles(wrapper, "scope-seg")).toEqual(["All apps on this computer (recommended)", "Only in one browser"]);
+    expect(tiles(wrapper, "scope-seg")).toEqual(["Only in one browser", "All apps on this computer"]);
   });
 
   it("shows the joined line on the exit screen only", async () => {

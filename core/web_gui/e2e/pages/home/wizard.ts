@@ -6,7 +6,7 @@ import { NET_NAME } from '../glossary';
 export const WIZARD_TEXT = {
   title: `Set up ${NET_NAME}`,
   scopeQuestion: `Where should ${NET_NAME} open sites?`,
-  scopeSystem: 'All apps on this computer (recommended)',
+  scopeSystem: 'All apps on this computer',
   scopeBrowser: 'Only in one browser',
   osQuestion: 'Which system are you setting up?',
   browserQuestion: 'Which browser do you use?',

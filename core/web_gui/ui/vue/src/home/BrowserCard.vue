@@ -23,7 +23,7 @@ const OS_IDS: Record<string, string> = { mac: "os-mac", windows: "os-windows", l
 const store = inject(STORE_KEY)!;
 const { form, proxy, ...h } = useHomeContext(store);
 const router = computed(() => isRouter(store.state ?? {}));
-const SCOPES: [NonNullable<typeof form.browser.scope>, string][] = [["system", SCOPE_SYSTEM], ["browser", SCOPE_BROWSER]];
+const SCOPES: [NonNullable<typeof form.browser.scope>, string][] = [["browser", SCOPE_BROWSER], ["system", SCOPE_SYSTEM]];
 const scope = computed(() => form.browser.scope);
 const BROWSERS: ["firefox" | "other", string][] = [["firefox", BROWSER_FIREFOX], ["other", BROWSER_OTHER]];
 const detected = typeof navigator === "undefined" ? "firefox" : detectBrowser(navigator.userAgent || "");

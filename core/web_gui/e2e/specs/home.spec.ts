@@ -65,7 +65,7 @@ test('76-home-pac-card: the browser card — the PAC auto-config address is visi
     await expect.soft(card.copyButton).toHaveText('Copy address');
   });
 
-  await test.step('the scope question offers "All apps on this computer (recommended)" and "Only in one browser"', async () => {
+  await test.step('the scope question offers "Only in one browser" and "All apps on this computer"', async () => {
     await expect.soft(card.card.getByText(WIZARD_TEXT.scopeQuestion)).toBeVisible();
     await expect.soft(card.scopeSystem).toHaveText(WIZARD_TEXT.scopeSystem);
     await expect.soft(card.scopeBrowser).toHaveText(WIZARD_TEXT.scopeBrowser);

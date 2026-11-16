@@ -48,7 +48,7 @@ export const STOPPED_NOTE_APP = `While ${NET_NAME} is stopped, sites in the brow
 export const CONFIRM_STOP_TEXT = `Stop ${NET_NAME}? While it is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds.`;
 
 export const SCOPE_QUESTION = `Where should ${NET_NAME} open sites?`;
-export const SCOPE_SYSTEM = "All apps on this computer (recommended)";
+export const SCOPE_SYSTEM = "All apps on this computer";
 export const SCOPE_BROWSER = "Only in one browser";
 export const FIREFOX_STEPS: string[] = [
   "In Firefox open \"Settings\" → \"General\" and scroll down to \"Network Settings\".",
