@@ -6,6 +6,14 @@
   .card-full{grid-column:1 / -1;}
   .mini-row{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start;}
   .mini-row > .card{margin-bottom:0;}
+  /* Wide screen: the browser instructions (the tall card) and the invite share the wide left column, "This computer" stands
+     beside them; the first screen keeps the name field, the exit switch and the intro line of the instructions above 800 px. */
+  @media (min-width:1100px){
+    .mini-row{grid-template-columns:2fr 1fr;}
+    .mini-row > #home-proxy{grid-column:1;grid-row:1;}
+    .mini-row > :nth-child(2){grid-column:1;grid-row:2;}
+    .mini-row > :nth-child(3){grid-column:2;grid-row:1 / span 2;}
+  }
   .home-grid > .card{margin-bottom:0;}
   .state-panel{display:flex;align-items:flex-start;gap:10px;}
   .state-panel .state-dot{margin-top:5px;flex-shrink:0;}
@@ -39,9 +47,9 @@
   .ring-legend-via.ring-legend-relayed::before{border-color:var(--ring-via)!important;} .ring-legend-via.ring-legend-busy.ring-legend-relayed::before{border-color:var(--ring-busy)!important;} .ring-legend-online.ring-legend-relayed::before{border-color:var(--ring-online)!important;}
   @media (max-width: 599px){
     .state-panel.with-ring{gap:12px;align-items:flex-start;}
-    /* Narrow ring: the longest count wraps by words; 8px with line-height 1 keeps even a three-line wrap in a wide fallback font (DejaVu, Courier) inside the inner circle. */
-    .ring-center-main{font-size:10px;letter-spacing:-.02em;white-space:nowrap;} .ring-center-sub{display:none;}
-    .ring-len-s .ring-center-main{font-size:10px;} .ring-len-m .ring-center-main{font-size:8px;} .ring-len-l .ring-center-main{font-size:8px;line-height:1;white-space:normal;left:10px;right:10px;}
+    /* Narrow ring: the count is 11px at every length (readable); a longer count wraps by words into two short lines inside the inner circle. */
+    .ring-center-main{font-size:11px;letter-spacing:-.02em;white-space:nowrap;} .ring-center-sub{display:none;}
+    .ring-len-s .ring-center-main{font-size:11px;} .ring-len-m .ring-center-main{font-size:11px;line-height:1.05;white-space:normal;left:10px;right:10px;} .ring-len-l .ring-center-main{font-size:10px;line-height:1;white-space:normal;left:10px;right:10px;}
     .ring-center-main:has(+ .ring-center-sub:not(:empty)){top:50%;}
   }
   .state-main{font-size:16px;font-weight:600;margin:0;}

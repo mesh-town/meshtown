@@ -90,7 +90,7 @@ function usedTextFor(it: NetPortItem): (local: number) => string {
   <div class="card">
     <h2>{{ PORTS_MINE_TITLE }}</h2>
     <div class="table-scroll">
-      <table class="data" :aria-label="PORTS_MINE_TITLE">
+      <table class="data stack" :aria-label="PORTS_MINE_TITLE">
         <thead><tr><th>{{ PORTS_COL_PORT }}</th><th>{{ PORTS_COL_NAME }}</th><th>{{ PORTS_COL_AUDIENCE }}</th><th>{{ PORTS_COL_STATUS }}</th><th></th></tr></thead>
         <tbody id="ports-own-tbody">
           <tr v-if="!own.length"><td colspan="5" class="hint">{{ EMPTY_OWN }}</td></tr>

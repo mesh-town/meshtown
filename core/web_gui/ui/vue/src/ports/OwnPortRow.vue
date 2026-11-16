@@ -5,7 +5,7 @@ import type { PortAudience } from "./use-ports-actions.ts";
 import PortEditRow from "./PortEditRow.vue";
 import { portStatusText } from "./ports-view.ts";
 import { portKey } from "./ports-proto.ts";
-import { PORTS_EDIT, PORTS_PROTO_UDP, PORTS_UNPUBLISH } from "./ports-texts.ts";
+import { PORTS_COL_AUDIENCE, PORTS_COL_NAME, PORTS_COL_PORT, PORTS_COL_STATUS, PORTS_EDIT, PORTS_PROTO_UDP, PORTS_UNPUBLISH } from "./ports-texts.ts";
 
 // A row of "My published ports"; while `editing`, the editor is expanded under it.
 const props = withDefaults(defineProps<{
@@ -25,10 +25,10 @@ const emit = defineEmits<{ (e: "edit"): void; (e: "cancel"): void; (e: "saved"):
 
 <template>
   <tr>
-    <td><span class="mono">{{ row.port }}</span><template v-if="proto === 'udp'"> <span class="badge badge-grey" data-port-proto="udp">{{ PORTS_PROTO_UDP }}</span></template></td>
-    <td>{{ row.name }}</td>
-    <td>{{ audience }}</td>
-    <td>{{ portStatusText({ local: row.local, proto }) }}</td>
+    <td :data-label="PORTS_COL_PORT"><span class="mono">{{ row.port }}</span><template v-if="proto === 'udp'"> <span class="badge badge-grey" data-port-proto="udp">{{ PORTS_PROTO_UDP }}</span></template></td>
+    <td :data-label="PORTS_COL_NAME">{{ row.name }}</td>
+    <td :data-label="PORTS_COL_AUDIENCE">{{ audience }}</td>
+    <td :data-label="PORTS_COL_STATUS">{{ portStatusText({ local: row.local, proto }) }}</td>
     <td>
       <button type="button" class="btn btn-sm" :data-port-edit="key" :disabled="busy" @click="emit('edit')">{{ PORTS_EDIT }}</button>
       <button type="button" class="btn btn-sm" :data-port-unpublish="key" :disabled="busy" @click="emit('unpublish')">{{ PORTS_UNPUBLISH }}</button>
