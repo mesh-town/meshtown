@@ -202,7 +202,7 @@ describe("stopping the node", () => {
 describe("proxy scope choice", () => {
   it("the question and the two answers", () => {
     assert.equal(texts.SCOPE_QUESTION, `Where should ${NET_NAME} open sites?`);
-    assert.equal(texts.SCOPE_SYSTEM, "All apps on this computer (recommended)");
+    assert.equal(texts.SCOPE_SYSTEM, "All apps on this computer");
     assert.equal(texts.SCOPE_BROWSER, "Only in one browser");
   });
 
