@@ -62,3 +62,21 @@
   @media (max-width:599px){
     #scope-seg .btn,#browser-seg .btn,#os-seg .btn{min-height:44px;}
   }
+  @media (max-width:720px){
+    #tabs .tab .chip{margin-left:3px;padding:0 5px;font-size:11px;}
+    #tabs .tab:has(.chip){flex:1.3 1 0;}
+  }
+  @media (max-width:599px){
+    #net-subtabs{flex-wrap:nowrap;overflow-x:auto;}
+    #net-subtabs .home-tab{flex:0 0 auto;white-space:nowrap;padding:6px 8px;font-size:13px;}
+    .ntabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+    .ntab{min-width:0;}
+    .ntab .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .ntab.add{justify-self:start;}
+    table.data:has(td[colspan]){min-width:0;}
+    table.data:has(td[colspan]) thead{display:none;}
+    .btn-x.btn-text{padding:6px;line-height:20px;}
+    .chip{line-height:20px;padding-top:5px;padding-bottom:5px;}
+    .domain-card-others .site-more,.site-more{padding:3px 2px;line-height:20px;}
+    #wizard-strip button{min-width:32px;min-height:32px;}
+  }

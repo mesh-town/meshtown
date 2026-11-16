@@ -103,7 +103,9 @@
 
 
   /* Sign-in and first-password screens (`login/`). */
-  .auth-screen{max-width:420px;margin:48px auto;}
+  .auth-screen{width:calc(100% - 24px);max-width:420px;margin:48px auto;}
+  @media (max-width:599px){.auth-screen{margin-top:24px;}}
+  a.btn{display:inline-block;text-decoration:none;text-align:center;}
   .auth-input{display:block;width:100%;margin-bottom:12px;}
   .no-password-steps{padding-left:20px;margin:0;font-size:14px;}
   .no-password-steps li{margin-bottom:10px;}
