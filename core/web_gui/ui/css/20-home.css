@@ -47,9 +47,10 @@
   .ring-legend-via.ring-legend-relayed::before{border-color:var(--ring-via)!important;} .ring-legend-via.ring-legend-busy.ring-legend-relayed::before{border-color:var(--ring-busy)!important;} .ring-legend-online.ring-legend-relayed::before{border-color:var(--ring-online)!important;}
   @media (max-width: 599px){
     .state-panel.with-ring{gap:12px;align-items:flex-start;}
-    /* Narrow ring: the count is 11px at every length (readable); a longer count wraps by words into two short lines inside the inner circle. */
+    /* Narrow ring: a short count is 11px; a longer one is 10px and is held narrow so it always wraps by words into short lines; even a wide
+       fallback font (DejaVu) keeps a 4px gap to the inner circle. */
     .ring-center-main{font-size:11px;letter-spacing:-.02em;white-space:nowrap;} .ring-center-sub{display:none;}
-    .ring-len-s .ring-center-main{font-size:11px;} .ring-len-m .ring-center-main{font-size:11px;line-height:1.05;white-space:normal;left:10px;right:10px;} .ring-len-l .ring-center-main{font-size:10px;line-height:1;white-space:normal;left:10px;right:10px;}
+    .ring-len-s .ring-center-main{font-size:11px;} .ring-len-m .ring-center-main{font-size:10px;line-height:1.05;white-space:normal;left:16px;right:16px;} .ring-len-l .ring-center-main{font-size:10px;line-height:1;white-space:normal;left:10px;right:10px;}
     .ring-center-main:has(+ .ring-center-sub:not(:empty)){top:50%;}
   }
   .state-main{font-size:16px;font-weight:600;margin:0;}
