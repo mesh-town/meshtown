@@ -64,7 +64,7 @@
   #wizard-strip .strip-step + .strip-step::before{content:"";display:block;width:16px;min-width:6px;flex:0 1 16px;height:1px;background:var(--border);margin:0 6px;}
   #wizard-strip .strip-step > *{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;color:var(--fg-muted);background:none;border:0;padding:2px 0;white-space:nowrap;}
   #wizard-strip button{cursor:pointer;} #wizard-strip button:hover .strip-name{color:var(--fg);} #wizard-strip button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;}
-  #wizard-strip .strip-dot{display:inline-flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--border);font-size:12px;font-weight:600;}
+  #wizard-strip .strip-dot{display:inline-flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--control-border);font-size:12px;font-weight:600;}
   #wizard-strip .done{color:var(--green);} #wizard-strip .done .strip-dot{border-color:var(--green);color:var(--green);}
   #wizard-strip .open .strip-dot{border-color:var(--fg-muted);}
   #wizard-strip .current > *{color:var(--fg);font-weight:600;} #wizard-strip .current .strip-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);}

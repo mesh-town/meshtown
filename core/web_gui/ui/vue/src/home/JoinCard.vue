@@ -73,7 +73,7 @@ const statusText = computed(() => (refusedText(refusal.info.value) === null && !
     <a href="#" class="link-more" id="create-toggle" v-if="hasNet" @click.prevent="j.toggleCreate">{{ HOME_CREATE_TOGGLE }}</a>
     <div id="create-box" :hidden="!showCreate">
       <label class="field-label" for="create-label-input">{{ HOME_CREATE_LABEL }}</label>
-      <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="create-label-input" v-model="form.label" :placeholder="HOME_CREATE_PLACEHOLDER">
+      <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="create-label-input" v-model="form.label" @input="form.labelError = null" :placeholder="HOME_CREATE_PLACEHOLDER">
       <p class="field-error-text" id="create-label-error" role="alert" :aria-label="HOME_CREATE_ERROR_ARIA" :hidden="!form.labelError">{{ form.labelError }}</p>
       <div class="btn-row">
         <button type="button" :class="['btn', { 'btn-primary': !hasNet }]" id="create-btn" :disabled="!!form.busy" @click="j.create">{{ form.busy === "create" ? HOME_CREATE_BUSY : HOME_CREATE_BTN }}</button>

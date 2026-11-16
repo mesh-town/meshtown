@@ -102,7 +102,7 @@ function cancelled(): void {
     </InviteForm>
     <div v-else id="add-net-create-box">
       <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>
-      <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
+      <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" @input="form.labelError = null" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
       <p class="field-error-text" id="add-net-label-error" role="alert" :hidden="!form.labelError">{{ form.labelError }}</p>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="create">{{ form.busy ? ADD_NET_BUSY : ADD_NET_CREATE_BTN }}</button>

@@ -6,7 +6,7 @@ import type { Store } from "../core/store.ts";
 import { getToken } from "../core/token.ts";
 import { GAP_TEXT, chipTags, downloadUrl, effectiveLogNet, formatLogTime, lineNetTag, logNetFilters, ringHint, visibleEntries } from "./log-view.ts";
 import {
-  LOG_AUTOSCROLL, LOG_DOWNLOAD, LOG_LOADING, LOG_NETWORK_LABEL, LOG_PAUSE, LOG_RESUME, LOG_SEARCH_PLACEHOLDER, LOG_STORE_MISSING, LOG_TAG_ALL, LOG_WINDOW_LABEL,
+  LOG_AUTOSCROLL, LOG_DOWNLOAD, LOG_LOADING, LOG_NETWORK_LABEL, LOG_PAUSE, LOG_RESUME, LOG_SEARCH_EMPTY, LOG_SEARCH_PLACEHOLDER, LOG_STORE_MISSING, LOG_TAG_ALL, LOG_WINDOW_LABEL,
 } from "./log-texts.ts";
 import { useLogFeed } from "./use-log-feed.ts";
 
@@ -90,6 +90,7 @@ watch([shown, autoscroll], scrollDown, { flush: "post" });
           <div v-else class="log-line" role="listitem" :data-tag="e.tag"><span class="log-time">{{ formatLogTime(e.t) }}</span><span class="log-tag" :class="'tag-' + e.tag">[{{ e.tag }}]</span> <span v-if="lineNetTag(e, store)" class="log-net">{{ lineNetTag(e, store) }}</span> {{ e.text }}</div>
         </template>
       </div>
+      <div v-if="search && shown.length === 0" class="log-empty" id="log-search-empty">{{ LOG_SEARCH_EMPTY }}</div>
     </div>
     <p class="hint" id="log-ring-hint">{{ hint }}</p>
   </div>
