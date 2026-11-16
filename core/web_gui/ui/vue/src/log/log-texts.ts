@@ -7,6 +7,7 @@ export const LOG_NETWORK_LABEL = "Network:";
 export const LOG_ALL_NETWORKS = "All networks";
 export const LOG_TAG_ALL = "all";
 export const LOG_SEARCH_PLACEHOLDER = "search in lines";
+export const LOG_SEARCH_EMPTY = "Nothing found";
 export const LOG_AUTOSCROLL = "Auto-scroll";
 export const LOG_RESUME = "Resume";
 export const LOG_PAUSE = "Pause";
