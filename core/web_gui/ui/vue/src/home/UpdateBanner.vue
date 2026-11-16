@@ -19,8 +19,8 @@ const text = computed(() => (newer.value && own.value ? updateAvailableText(newe
   <div v-if="visible" class="card" id="update-banner" role="status">
     <p>{{ text }}</p>
     <p v-if="!android" class="hint" id="update-hint">{{ UPDATE_PACKAGES_HINT }}</p>
-    <div class="hero-row">
-      <a class="btn" id="update-download" :href="href" target="_blank" rel="noopener">{{ UPDATE_DOWNLOAD }}</a>
+    <div class="btn-row">
+      <a class="btn btn-primary" id="update-download" :href="href" target="_blank" rel="noopener">{{ UPDATE_DOWNLOAD }}</a>
       <button type="button" class="btn" id="update-dismiss" @click="dismiss">{{ UPDATE_DISMISS }}</button>
     </div>
   </div>

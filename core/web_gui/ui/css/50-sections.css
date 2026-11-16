@@ -121,7 +121,7 @@
 .badge-warn{background:var(--warn-bg);color:var(--warn-fg);}
 .badge-grey{background:var(--grey-bg);color:var(--fg-muted);}
 .peer-line{display:block;margin-top:2px;font-size:13px;color:var(--fg-muted);}
-@media (max-width:480px){.peer-row .peer-action{order:4;flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding-left:20px;text-align:left;}}
+@media (max-width:480px){.peer-row .peer-action{order:4;flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding-left:20px;text-align:left;} .peer-row .peer-action .member-menu{margin-left:auto;}}
 .member-menu{position:relative;display:inline-block;}
 .member-menu-btn{min-width:28px;min-height:28px;border:1px solid var(--control-border);border-radius:6px;background:var(--bg-elev);color:var(--fg);cursor:pointer;}
 .menu{position:absolute;right:0;top:100%;z-index:20;min-width:200px;margin:4px 0 0;padding:4px;list-style:none;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev);box-shadow:0 6px 18px rgba(0,0,0,.18);}

@@ -85,9 +85,9 @@ defineExpose({ ask, reason, alt });
         <input id="member-reason" v-model="draft" type="text" class="input" :maxlength="spec.field.max" autocomplete="off" @keydown.enter.prevent />
       </template>
       <div class="dialog-actions">
-        <button id="member-confirm-yes" type="button" class="btn" :class="{ 'btn-danger': spec.danger }" @click="finish('yes')" :disabled="locked">{{ spec.action }}</button>
+        <button id="member-confirm-yes" type="button" class="btn" :class="spec.danger ? 'btn-danger' : 'btn-primary'" @click="finish('yes')" :disabled="locked">{{ spec.action }}</button>
         <button v-if="spec.alt" id="member-confirm-alt" type="button" class="btn" :class="{ 'btn-danger': spec.alt.danger }" @click="finish('alt')">{{ spec.alt.label }}</button>
-        <button id="member-confirm-cancel" ref="cancelBtn" type="button" class="btn btn-primary" autofocus @click="finish('no')">{{ DIALOG_CANCEL }}</button>
+        <button id="member-confirm-cancel" ref="cancelBtn" type="button" class="btn" :class="{ 'btn-primary': spec.danger }" autofocus @click="finish('no')">{{ DIALOG_CANCEL }}</button>
       </div>
     </template>
   </dialog>
